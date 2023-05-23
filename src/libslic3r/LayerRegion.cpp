@@ -13,6 +13,7 @@
 #include <string>
 #include <map>
 
+#include <boost/algorithm/clamp.hpp>
 #include <boost/log/trivial.hpp>
 
 namespace Slic3r {
@@ -141,7 +142,7 @@ void LayerRegion::make_perimeters(
                 m_thin_fills,
                 fill_expolygons);
         perimeter_and_gapfill_ranges.emplace_back(
-            ExtrusionRange{ perimeters_begin, uint32_t(m_perimeters.size()) }, 
+            ExtrusionRange{ perimeters_begin, uint32_t(m_perimeters.size()) },
             ExtrusionRange{ gap_fills_begin,  uint32_t(m_thin_fills.size()) });
         fill_expolygons_ranges.emplace_back(ExtrusionRange{ fill_expolygons_begin, uint32_t(fill_expolygons.size()) });
     }
@@ -517,12 +518,12 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
             static int iRun = 0;
             SVG svg(debug_out_path("4_process_external_surfaces-fill_regions-%d.svg", iRun ++).c_str(), get_extents(fill_boundaries_ex));
             svg.draw(fill_boundaries_ex);
-            svg.draw_outline(fill_boundaries_ex, "black", "blue", scale_(0.05)); 
+            svg.draw_outline(fill_boundaries_ex, "black", "blue", scale_(0.05));
             svg.Close();
         }
 //        export_region_fill_surfaces_to_svg_debug("4_process_external_surfaces-initial");
 #endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
- 
+
         {
             // Bridge expolygons, grown, to be tested for intersection with other bridge regions.
             std::vector<BoundingBox> fill_boundaries_ex_bboxes = get_extents_vector(fill_boundaries_ex);
@@ -533,7 +534,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                 const Point pt = bridges[i].expolygon.contour.points.front();
                 int idx_island = -1;
                 for (int j = 0; j < int(fill_boundaries_ex.size()); ++ j)
-                    if (fill_boundaries_ex_bboxes[j].contains(pt) && 
+                    if (fill_boundaries_ex_bboxes[j].contains(pt) &&
                         fill_boundaries_ex[j].contains(pt)) {
                         idx_island = j;
                         break;
@@ -554,7 +555,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
 
         // 2) Group the bridge surfaces by overlaps.
         std::vector<size_t> bridge_group(bridges.size(), (size_t)-1);
-        size_t n_groups = 0; 
+        size_t n_groups = 0;
         for (size_t i = 0; i < bridges.size(); ++ i) {
             // A grup id for this bridge.
             size_t group_id = (bridge_group[i] == size_t(-1)) ? (n_groups ++) : bridge_group[i];
@@ -689,7 +690,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
                 s1);
         }
     }
-    
+
     // Subtract the new top surfaces from the other non-top surfaces and re-add them.
     Polygons new_polygons = to_polygons(new_surfaces);
     for (size_t i = 0; i < internal.size(); ++ i) {
@@ -709,7 +710,7 @@ void LayerRegion::process_external_surfaces(const Layer *lower_layer, const Poly
         polygons_append(new_polygons, to_polygons(new_expolys));
         surfaces_append(new_surfaces, std::move(new_expolys), s1);
     }
-    
+
     m_fill_surfaces.surfaces = std::move(new_surfaces);
 
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
@@ -723,12 +724,12 @@ void LayerRegion::prepare_fill_surfaces()
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     export_region_slices_to_svg_debug("2_prepare_fill_surfaces-initial");
     export_region_fill_surfaces_to_svg_debug("2_prepare_fill_surfaces-initial");
-#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */ 
+#endif /* SLIC3R_DEBUG_SLICE_PROCESSING */
 
     /*  Note: in order to make the psPrepareInfill step idempotent, we should never
         alter fill_surfaces boundaries on which our idempotency relies since that's
         the only meaningful information returned by psPerimeters. */
-    
+
     bool spiral_vase = this->layer()->object()->print()->config().spiral_vase;
 
     // if no solid layers are requested, turn top/bottom surfaces to internal
@@ -826,7 +827,7 @@ void LayerRegion::export_region_fill_surfaces_to_svg(const char *path) const
     const float transparency = 0.5f;
     for (const Surface &surface : this->fill_surfaces()) {
         svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type), transparency);
-        svg.draw_outline(surface.expolygon, "black", "blue", scale_(0.05)); 
+        svg.draw_outline(surface.expolygon, "black", "blue", scale_(0.05));
     }
     export_surface_type_legend_to_svg(svg, legend_pos);
     svg.Close();
@@ -841,4 +842,3 @@ void LayerRegion::export_region_fill_surfaces_to_svg_debug(const char *name) con
 }
 
 }
- 

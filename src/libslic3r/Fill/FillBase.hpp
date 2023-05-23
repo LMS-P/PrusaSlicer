@@ -151,14 +151,22 @@ protected:
 public:
     virtual std::pair<float, Point> _infill_direction(const Surface *surface) const;
     static void connect_infill(Polylines &&infill_ordered, const ExPolygon &boundary, Polylines &polylines_out, const double spacing, const FillParams &params);
-    static void connect_infill(Polylines &&infill_ordered, const Polygons &boundary, const BoundingBox& bbox, Polylines &polylines_out, const double spacing, const FillParams &params);
-    static void connect_infill(Polylines &&infill_ordered, const std::vector<const Polygon*> &boundary, const BoundingBox &bbox, Polylines &polylines_out, double spacing, const FillParams &params);
+    static void connect_infill(Polylines &&infill_ordered, const ExPolygon &boundary, const Polygons &polygons_src, Polylines &polylines_out, const double spacing, const FillParams &params);
 
     static void connect_base_support(Polylines &&infill_ordered, const std::vector<const Polygon*> &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const double spacing, const FillParams &params);
     static void connect_base_support(Polylines &&infill_ordered, const Polygons &boundary_src, const BoundingBox &bbox, Polylines &polylines_out, const double spacing, const FillParams &params);
 
     static coord_t  _adjust_solid_spacing(const coord_t width, const coord_t distance);
 };
+
+namespace FakePerimeterConnect {
+    void connect_infill(Polylines&& infill_ordered, const ExPolygon& boundary, Polylines& polylines_out, const double spacing, const FillParams& params);
+    void connect_infill(Polylines&& infill_ordered, const Polygons& boundary, const BoundingBox& bbox, Polylines& polylines_out, const double spacing, const FillParams& params);
+    void connect_infill(Polylines&& infill_ordered, const std::vector<const Polygon*>& boundary, const BoundingBox& bbox, Polylines& polylines_out, double spacing, const FillParams& params);
+}
+namespace PrusaSimpleConnect {
+    void connect_infill(Polylines&& infill_ordered, const ExPolygon &boundary_src, Polylines &polylines_out, const double spacing, const FillParams &params);
+}
 
 } // namespace Slic3r
 

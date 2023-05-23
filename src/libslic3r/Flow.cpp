@@ -8,7 +8,7 @@
 
 namespace Slic3r {
 
-FlowErrorNegativeSpacing::FlowErrorNegativeSpacing() : 
+FlowErrorNegativeSpacing::FlowErrorNegativeSpacing() :
 	FlowError("Flow::spacing() produced negative spacing. Did you set some extrusion width too small?") {}
 
 FlowErrorNegativeFlow::FlowErrorNegativeFlow() :
@@ -35,7 +35,7 @@ float Flow::auto_extrusion_width(FlowRole role, float nozzle_diameter)
 // and to provide reasonable values to the PlaceholderParser.
 static inline FlowRole opt_key_to_flow_role(const std::string &opt_key)
 {
- 	if (opt_key == "perimeter_extrusion_width" || 
+ 	if (opt_key == "perimeter_extrusion_width" ||
  		// or all the defaults:
  		opt_key == "extrusion_width" || opt_key == "first_layer_extrusion_width")
         return frPerimeter;
@@ -49,11 +49,11 @@ static inline FlowRole opt_key_to_flow_role(const std::string &opt_key)
 		return frTopSolidInfill;
 	else if (opt_key == "support_material_extrusion_width")
     	return frSupportMaterial;
-    else 
+    else
     	throw Slic3r::RuntimeError("opt_key_to_flow_role: invalid argument");
 };
 
-static inline void throw_on_missing_variable(const std::string &opt_key, const char *dependent_opt_key) 
+static inline void throw_on_missing_variable(const std::string &opt_key, const char *dependent_opt_key)
 {
 	throw FlowErrorMissingVariable((boost::format(_u8L("Cannot calculate extrusion width for %1%: Variable \"%2%\" not accessible.")) % opt_key % dependent_opt_key).str());
 }
@@ -125,7 +125,7 @@ Flow Flow::new_from_config_width(FlowRole role, const ConfigOptionFloatOrPercent
         // If user set a manual value, use it.
         w = float(width.get_abs_value(height));
     }
-    
+
     return Flow(w, height, rounded_rectangle_extrusion_spacing(w, height), nozzle_diameter, false);
 }
 

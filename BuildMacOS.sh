@@ -109,7 +109,7 @@ echo -n "[3/9] Configuring dependencies..."
     # cmake deps
     echo "Cmake command: cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=\"10.14\" ${BUILD_ARCH} "
     pushd deps/build
-    cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS 
+    cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET="10.14" $BUILD_ARGS
     echo "ls deps/build:"
     ls -al
     echo "ls deps/build/dep_GLEW-prefix"
@@ -120,14 +120,15 @@ echo "done"
 echo -n "[4/9] Building dependencies..."
 {
     # make deps
-    make -j$NCORES
+    # make -j$NCORES
+    make
 
     echo "ls $PWD/destdir/usr/local/lib"
     ls $PWD/destdir/usr/local/lib
-    
+
     echo "ls $PWD/destdir/usr/local/lib/cmake"
     ls $PWD/destdir/usr/local/lib/cmake
-    
+
     echo "ls $PWD/destdir/usr/local/lib/cmake/boost_locale-1.75.0"
     ls $PWD/destdir/usr/local/lib/cmake/boost_locale-1.75.0
 
@@ -177,7 +178,8 @@ echo "done"
 echo -n "[8/9] Building Slic3r..."
 {
     # make Slic3r
-    make -j$NCORES
+    # make -j$NCORES
+    make
 
     # make .mo
     make gettext_po_to_mo

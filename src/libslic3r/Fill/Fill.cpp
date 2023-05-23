@@ -68,7 +68,7 @@ struct SurfaceFillParams
 #define RETURN_COMPARE_NON_EQUAL_TYPED(TYPE, KEY) if (TYPE(this->KEY) < TYPE(rhs.KEY)) return true; if (TYPE(this->KEY) > TYPE(rhs.KEY)) return false;
 
 		// Sort first by decreasing bridging angle, so that the bridges are processed with priority when trimming one layer by the other.
-		if (this->bridge_angle > rhs.bridge_angle) return true; 
+		if (this->bridge_angle > rhs.bridge_angle) return true;
 		if (this->bridge_angle < rhs.bridge_angle) return false;
 
 		RETURN_COMPARE_NON_EQUAL(extruder);
@@ -161,7 +161,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
 							ExtrusionRole::InternalInfill);
 		        params.bridge_angle = float(surface.bridge_angle);
 		        params.angle 		= float(Geometry::deg2rad(region_config.fill_angle.value));
-		        
+
 		        // Calculate the actual flow we'll be using for this infill.
 		        params.bridge = is_bridge || Fill::use_bridge_flow(params.pattern);
 				params.flow   = params.bridge ?
@@ -173,8 +173,8 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
 		        if (surface.is_solid() || is_bridge) {
 		            params.spacing = params.flow.spacing();
 		            // Don't limit anchor length for solid or bridging infill.
-		            params.anchor_length = 1000.f;
-					params.anchor_length_max = 1000.f;
+		            params.anchor_length = is_bridge ? 0 : 1000.f;
+					params.anchor_length_max = is_bridge ? 0 : 1000.f;
 		        } else {
 					// Internal infill. Calculating infill line spacing independent of the current layer height and 1st layer status,
 					// so that internall infill will be aligned over all layers of the current region.
@@ -297,7 +297,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
 		        params.angle 		= float(Geometry::deg2rad(layerm.region().config().fill_angle.value));
 		        // calculate the actual flow we'll be using for this infill
 				params.flow = layerm.flow(frSolidInfill);
-		        params.spacing = params.flow.spacing();	        
+		        params.spacing = params.flow.spacing();
 				surface_fills.emplace_back(params);
 				surface_fills.back().surface.surface_type = stInternalSolid;
 				surface_fills.back().surface.thickness = layer.height;
@@ -337,7 +337,7 @@ void export_group_fills_to_svg(const char *path, const std::vector<SurfaceFill> 
         for (const auto &expoly : fill.expolygons)
             svg.draw(expoly, surface_type_to_color_name(fill.surface.surface_type), transparency);
     export_surface_type_legend_to_svg(svg, legend_pos);
-    svg.Close(); 
+    svg.Close();
 }
 #endif
 
@@ -375,7 +375,7 @@ static void insert_fills_into_islands(Layer &layer, uint32_t fill_region_id, uin
 	    			const BoundingBoxes &bboxes     = li.fill_expolygons_composite() ?
 	    				layer.get_region(li.perimeters.region())->fill_expolygons_composite_bboxes() :
 	    				layer.get_region(li.fill_region_id)->fill_expolygons_bboxes();
-	    			const ExPolygons 	&expolygons = li.fill_expolygons_composite() ? 
+	    			const ExPolygons 	&expolygons = li.fill_expolygons_composite() ?
 	    				layer.get_region(li.perimeters.region())->fill_expolygons_composite() :
 	    				layer.get_region(li.fill_region_id)->fill_expolygons();
 	    			for (uint32_t fill_expolygon_id : li.fill_expolygons)
@@ -767,7 +767,7 @@ void Layer::make_ironing()
 		// ironing flowrate (5% percent)
 		// ironing speed (10 mm/sec)
 
-		// Kisslicer: 
+		// Kisslicer:
 		// iron off, Sweep, Group
 		// ironing speed: 15 mm/sec
 
@@ -785,9 +785,9 @@ void Layer::make_ironing()
 		if (LayerRegion *layerm = this->get_region(region_id); ! layerm->slices().empty()) {
 			IroningParams ironing_params;
 			const PrintRegionConfig &config = layerm->region().config();
-			if (config.ironing && 
+			if (config.ironing &&
 				(config.ironing_type == IroningType::AllSolid ||
-				 	(config.top_solid_layers > 0 && 
+				 	(config.top_solid_layers > 0 &&
 						(config.ironing_type == IroningType::TopSurfaces ||
 					 	(config.ironing_type == IroningType::TopmostOnly && layerm->layer()->upper_layer == nullptr))))) {
 				if (config.perimeter_extruder == config.solid_infill_extruder || config.perimeters == 0) {

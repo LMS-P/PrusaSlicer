@@ -66,7 +66,7 @@ public:
     float   spacing()         const { return m_spacing; }
     void    set_spacing(float spacing) { m_spacing = spacing; }
     coord_t scaled_spacing()  const { return coord_t(scale_(m_spacing)); }
-    // Nozzle diameter. 
+    // Nozzle diameter.
     float   nozzle_diameter() const { return m_nozzle_diameter; }
     // Is it a bridge?
     bool    bridge()          const { return m_bridge; }
@@ -81,12 +81,12 @@ public:
 
     bool operator==(const Flow &rhs) const { return m_width == rhs.m_width && m_height == rhs.m_height && m_nozzle_diameter == rhs.m_nozzle_diameter && m_bridge == rhs.m_bridge; }
 
-    Flow        with_width (float width)  const { 
-        assert(! m_bridge); 
+    Flow        with_width (float width)  const {
+        assert(! m_bridge);
         return Flow(width, m_height, rounded_rectangle_extrusion_spacing(width, m_height), m_nozzle_diameter, m_bridge);
     }
-    Flow        with_height(float height) const { 
-        assert(! m_bridge); 
+    Flow        with_height(float height) const {
+        assert(! m_bridge);
         return Flow(m_width, height, rounded_rectangle_extrusion_spacing(m_width, height), m_nozzle_diameter, m_bridge);
     }
     // Adjust extrusion flow for new extrusion line spacing, maintaining the old spacing between extrusions.
@@ -117,11 +117,11 @@ public:
 	static double extrusion_width(const std::string &opt_key, const ConfigOptionResolver &config, const unsigned int first_printing_extruder = 0);
 
 private:
-    Flow(float width, float height, float spacing, float nozzle_diameter, bool bridge) : 
-        m_width(width), m_height(height), m_spacing(spacing), m_nozzle_diameter(nozzle_diameter), m_bridge(bridge) 
-        { 
+    Flow(float width, float height, float spacing, float nozzle_diameter, bool bridge) :
+        m_width(width), m_height(height), m_spacing(spacing), m_nozzle_diameter(nozzle_diameter), m_bridge(bridge)
+        {
             // Gap fill violates this condition.
-            //assert(width >= height); 
+            //assert(width >= height);
         }
 
     float       m_width { 0 };
