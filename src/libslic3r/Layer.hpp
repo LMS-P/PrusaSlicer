@@ -135,7 +135,7 @@ public:
     
     Flow    flow(FlowRole role) const;
     Flow    flow(FlowRole role, double layer_height) const;
-    Flow    bridging_flow(FlowRole role, bool force_thick_bridges = false) const;
+    Flow    bridging_flow(FlowRole role, bool force_thick_bridges = false, float bridge_density = 1.0f) const;
 
     void    slices_to_fill_surfaces_clipped();
     void    prepare_fill_surfaces();

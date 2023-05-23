@@ -417,7 +417,7 @@ void Preset::set_visible_from_appconfig(const AppConfig &app_config)
 	    	for (auto it = this->renamed_from.begin(); ! is_visible && it != this->renamed_from.end(); ++ it)
 	    		is_visible = has(*it);
 	    }
-        else 
+        else
 			is_visible = false;
     }
 }
@@ -443,17 +443,17 @@ static std::vector<std::string> s_Preset_print_options {
     "raft_layers", "raft_first_layer_density", "raft_first_layer_expansion", "raft_contact_distance", "raft_expansion",
     "support_material_pattern", "support_material_with_sheath", "support_material_spacing", "support_material_closing_radius", "support_material_style",
     "support_material_synchronize_layers", "support_material_angle", "support_material_interface_layers", "support_material_bottom_interface_layers",
-    "support_material_interface_pattern", "support_material_interface_spacing", "support_material_interface_contact_loops", 
+    "support_material_interface_pattern", "support_material_interface_spacing", "support_material_interface_contact_loops",
     "support_material_contact_distance", "support_material_bottom_contact_distance",
-    "support_material_buildplate_only", 
-    "support_tree_angle", "support_tree_angle_slow", "support_tree_branch_diameter", "support_tree_branch_diameter_angle", "support_tree_branch_diameter_double_wall", 
+    "support_material_buildplate_only",
+    "support_tree_angle", "support_tree_angle_slow", "support_tree_branch_diameter", "support_tree_branch_diameter_angle", "support_tree_branch_diameter_double_wall",
     "support_tree_top_rate", "support_tree_branch_distance", "support_tree_tip_diameter",
     "dont_support_bridges", "thick_bridges", "notes", "complete_objects", "extruder_clearance_radius",
     "extruder_clearance_height", "gcode_comments", "gcode_label_objects", "output_filename_format", "post_process", "gcode_substitutions", "perimeter_extruder",
     "infill_extruder", "solid_infill_extruder", "support_material_extruder", "support_material_interface_extruder",
     "ooze_prevention", "standby_temperature_delta", "interface_shells", "extrusion_width", "first_layer_extrusion_width",
     "perimeter_extrusion_width", "external_perimeter_extrusion_width", "infill_extrusion_width", "solid_infill_extrusion_width",
-    "top_infill_extrusion_width", "support_material_extrusion_width", "infill_overlap", "infill_anchor", "infill_anchor_max", "bridge_flow_ratio",
+    "top_infill_extrusion_width", "support_material_extrusion_width", "infill_overlap", "infill_anchor", "infill_anchor_max", "bridge_flow_ratio", "bridge_density",
     "elefant_foot_compensation", "xy_size_compensation", "threads", "resolution", "gcode_resolution", "wipe_tower", "wipe_tower_x", "wipe_tower_y",
     "wipe_tower_width", "wipe_tower_cone_angle", "wipe_tower_rotation_angle", "wipe_tower_brim_width", "wipe_tower_bridging", "single_extruder_multi_material_priming", "mmu_segmented_region_max_width",
     "wipe_tower_no_sparse_layers", "wipe_tower_extra_spacing", "compatible_printers", "compatible_printers_condition", "inherits",
@@ -684,7 +684,7 @@ void PresetCollection::add_default_preset(const std::vector<std::string> &keys, 
 // Load all presets found in dir_path.
 // Throws an exception on error.
 void PresetCollection::load_presets(
-    const std::string &dir_path, const std::string &subdir, 
+    const std::string &dir_path, const std::string &subdir,
     PresetsConfigSubstitutions& substitutions, ForwardCompatibilitySubstitutionRule substitution_rule)
 {
     // Don't use boost::filesystem::canonical() on Windows, it is broken in regard to reparse points,
@@ -832,7 +832,7 @@ std::pair<Preset*, bool> PresetCollection::load_external_preset(
             this->select_preset(it - m_presets.begin());
             // The source config may contain keys from many possible preset types. Just copy those that relate to this preset.
 
-            // Following keys are not used neither by the UI nor by the slicing core, therefore they are not important 
+            // Following keys are not used neither by the UI nor by the slicing core, therefore they are not important
             // Erase them from config appl to avoid redundant "dirty" parameter in loaded preset.
             for (const char* key : { "print_settings_id", "filament_settings_id", "sla_print_settings_id", "sla_material_settings_id", "printer_settings_id",
                                      "printer_model", "printer_variant", "default_print_profile", "default_filament_profile", "default_sla_print_profile", "default_sla_material_profile" })
@@ -1251,7 +1251,7 @@ size_t PresetCollection::update_compatible_internal(const PresetWithVendorProfil
             }
         }
     }
-    
+
     // Update visibility of the default profiles here if the defaults are suppressed, the current profile is not compatible and we don't want to select another compatible profile.
     if (m_idx_selected >= m_num_default_presets && m_default_suppressed)
 	    for (size_t i = 0; i < m_num_default_presets; ++ i)
@@ -1761,7 +1761,7 @@ PhysicalPrinterCollection::PhysicalPrinterCollection( const std::vector<std::str
 // Load all printers found in dir_path.
 // Throws an exception on error.
 void PhysicalPrinterCollection::load_printers(
-    const std::string& dir_path, const std::string& subdir, 
+    const std::string& dir_path, const std::string& subdir,
     PresetsConfigSubstitutions& substitutions, ForwardCompatibilitySubstitutionRule substitution_rule)
 {
     // Don't use boost::filesystem::canonical() on Windows, it is broken in regard to reparse points,
@@ -2174,7 +2174,7 @@ size_t ExtruderFilaments::update_compatible_internal(const PresetWithVendorProfi
         config.set_key_value("num_extruders", new ConfigOptionInt((int)static_cast<const ConfigOptionFloats*>(opt)->values.size()));
     bool some_compatible = false;
 
-    // Adjust printer preset config to the first extruder from m_extruder_id 
+    // Adjust printer preset config to the first extruder from m_extruder_id
     Preset printer_preset_adjusted = active_printer.preset;
     if (m_extruder_id > 0 && !printer_preset_adjusted.config.opt_bool("single_extruder_multi_material")) {
         DynamicPrintConfig& active_printer_config = printer_preset_adjusted.config;
