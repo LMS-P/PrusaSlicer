@@ -212,7 +212,7 @@ namespace Slic3r {
         const Extruder &extruder = *gcodegen.writer().extruder();
 
         // Remaining quantized retraction length.
-        if (double retract_length = extruder.retract_to_go(toolchange ? extruder.retract_length_toolchange() : extruder.retract_length()); 
+        if (double retract_length = extruder.retract_to_go(toolchange ? extruder.retract_length_toolchange() : extruder.retract_length());
             retract_length > 0 && this->path.size() >= 2) {
             // Reduce feedrate a bit; travel speed is often too high to move on existing material.
             // Too fast = ripping of existing material; too slow = short wipe path, thus more blob.
@@ -319,7 +319,7 @@ namespace Slic3r {
             // When this is multiextruder printer without any ramming, we can just change
             // the tool without travelling to the tower.
         }
-        
+
         if (will_go_down) {
             gcode += gcodegen.writer().retract();
             gcode += gcodegen.writer().travel_to_z(z, "Travel down to the last wipe tower layer.");
@@ -336,7 +336,7 @@ namespace Slic3r {
                 deretraction_str = gcodegen.unretract();
         }
 
-        
+
 
 
         // Insert the toolchange and deretraction gcode into the generated gcode.
@@ -1017,8 +1017,8 @@ namespace DoExport {
 	    double volumetric_speed = 0.;
 	    if (! mm3_per_mm.empty()) {
 	        // In order to honor max_print_speed we need to find a target volumetric
-	        // speed that we can use throughout the print. So we define this target 
-	        // volumetric speed as the volumetric speed produced by printing the 
+	        // speed that we can use throughout the print. So we define this target
+	        // volumetric speed as the volumetric speed produced by printing the
 	        // smallest cross-section at the maximum speed: any larger cross-section
 	        // will need slower feedrates.
 	        volumetric_speed = *std::min_element(mm3_per_mm.begin(), mm3_per_mm.end()) * print.config().max_print_speed.value;
@@ -1779,15 +1779,15 @@ std::string GCode::placeholder_parser_process(
             if ( eid < ppi.num_extruders) {
                 if (! m_writer.config.use_relative_e_distances && ! is_approx(ppi.e_position[eid], ppi.opt_e_position->values[eid]))
                     const_cast<Extruder&>(e).set_position(ppi.opt_e_position->values[eid]);
-                if (! is_approx(ppi.e_retracted[eid], ppi.opt_e_retracted->values[eid]) || 
+                if (! is_approx(ppi.e_retracted[eid], ppi.opt_e_retracted->values[eid]) ||
                     ! is_approx(ppi.e_restart_extra[eid], ppi.opt_e_restart_extra->values[eid]))
                     const_cast<Extruder&>(e).set_retracted(ppi.opt_e_retracted->values[eid], ppi.opt_e_restart_extra->values[eid]);
             }
         }
 
         return output;
-    } 
-    catch (std::runtime_error &err) 
+    }
+    catch (std::runtime_error &err)
     {
         // Collect the names of failed template substitutions for error reporting.
         auto it = ppi.failed_templates.find(name);
@@ -1823,7 +1823,7 @@ static bool custom_gcode_sets_temperature(const std::string &gcode, const int mc
             // Parse the M or G code value.
             char *endptr = nullptr;
             int mgcode = int(strtol(ptr, &endptr, 10));
-            if (endptr != nullptr && endptr != ptr && 
+            if (endptr != nullptr && endptr != ptr &&
                 is_gcode ?
                     // G10 found
                     mgcode == 10 :
@@ -2070,7 +2070,7 @@ namespace ProcessLayer
                     // && !MMU1
                     ) {
                     //! FIXME_in_fw show message during print pause
-                    // FIXME: Why is pause_print_gcode here? Why is it supplied "color_change_extruder"? Why is that not 
+                    // FIXME: Why is pause_print_gcode here? Why is it supplied "color_change_extruder"? Why is that not
                     //        passed to color_change_gcode below?
                     DynamicConfig cfg;
                     cfg.set_key_value("color_change_extruder", new ConfigOptionInt(m600_extruder_before_layer));
@@ -2086,7 +2086,7 @@ namespace ProcessLayer
                     // see GH issue #6362
                     gcodegen.writer().unretract();
                 }
-	        } 
+	        }
 	        else {
 	            if (gcode_type == CustomGCode::PausePrint) // Pause print
 	            {
@@ -2421,17 +2421,17 @@ static inline bool comment_is_perimeter(const std::string_view comment) {
 
 void GCode::process_layer_single_object(
     // output
-    std::string              &gcode, 
+    std::string              &gcode,
     // Index of the extruder currently active.
     const unsigned int        extruder_id,
     // What object and instance is going to be printed.
     const InstanceToPrint    &print_instance,
     // and the object & support layer of the above.
-    const ObjectLayerToPrint &layer_to_print, 
+    const ObjectLayerToPrint &layer_to_print,
     // Container for extruder overrides (when wiping into object or infill).
     const LayerTools         &layer_tools,
     // Is any extrusion possibly marked as wiping extrusion?
-    const bool                is_anything_overridden, 
+    const bool                is_anything_overridden,
     // Round 1 (wiping into object or infill) or round 2 (normal extrusions).
     const bool                print_wipe_extrusions)
 {
@@ -2489,7 +2489,7 @@ void GCode::process_layer_single_object(
             if (support_dontcare || interface_dontcare) {
                 // Some support will be printed with "don't care" material, preferably non-soluble.
                 // Is the current extruder assigned a soluble filament?
-                auto it_nonsoluble = std::find_if(layer_tools.extruders.begin(), layer_tools.extruders.end(), 
+                auto it_nonsoluble = std::find_if(layer_tools.extruders.begin(), layer_tools.extruders.end(),
                     [&soluble = std::as_const(print.config().filament_soluble)](unsigned int extruder_id) { return ! soluble.get_at(extruder_id); });
                 // There should be a non-soluble extruder available.
                 assert(it_nonsoluble != layer_tools.extruders.end());
@@ -2932,18 +2932,18 @@ std::string GCode::extrude_support(const ExtrusionEntityCollection &support_fill
     return gcode;
 }
 
-bool GCode::GCodeOutputStream::is_error() const 
+bool GCode::GCodeOutputStream::is_error() const
 {
     return ::ferror(this->f);
 }
 
 void GCode::GCodeOutputStream::flush()
-{ 
+{
     ::fflush(this->f);
 }
 
 void GCode::GCodeOutputStream::close()
-{ 
+{
     if (this->f) {
         ::fclose(this->f);
         this->f = nullptr;
@@ -3211,8 +3211,8 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string_view de
                 auto oldE = dE;
                 dE = m_small_area_infill_flow_compensator->modify_flow(line_length, dE, path.role());
 
-                if (m_config.gcode_comments && boost::str(boost::format("%.5f") % oldE) != boost::str(boost::format("%.5f") % dE)) {
-                    comment += boost::str(boost::format(" | Old Flow Value: %.5f tool at: X%.3f Y%.3f was at: X%.3f Y%.3f") % oldE % p.x() % p.y() % prev.x() % prev.y());
+                if (m_config.gcode_comments && oldE > 0 && oldE != dE) {
+                    comment += boost::str(boost::format(" | Old Flow Value: %.5f  Length: %.5f") % oldE % line_length);
                 }
             }
 
@@ -3240,8 +3240,8 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string_view de
                 auto oldE = dE;
                 dE = m_small_area_infill_flow_compensator->modify_flow(line_length, dE, path.role());
 
-                if (m_config.gcode_comments && boost::str(boost::format("%.5f") % oldE) != boost::str(boost::format("%.5f") % dE)) {
-                    marked_comment += boost::str(boost::format(" | Old Flow Value: %.5f tool at: X%.3f Y%.3f was at: X%.3f Y%.3f") % oldE % p.x() % p.y() % prev.x() % prev.y());
+                if (m_config.gcode_comments && oldE > 0 && oldE != dE) {
+                    marked_comment += boost::str(boost::format(" | Old Flow Value: %.5f  Length: %.5f") % oldE % line_length);
                 }
             }
 
@@ -3537,7 +3537,7 @@ Point GCode::gcode_to_point(const Vec2d &point) const
         // This function may be called at the very start from toolchange G-code when the extruder is not assigned yet.
         pt += m_config.extruder_offset.get_at(extruder->id());
     return scaled<coord_t>(pt);
-        
+
 }
 
 }   // namespace Slic3r

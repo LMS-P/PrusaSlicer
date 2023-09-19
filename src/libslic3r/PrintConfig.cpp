@@ -348,7 +348,7 @@ void PrintConfigDef::init_common_params()
     def->mode = comAdvanced;
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionString(""));
-    
+
     def = this->add("printhost_port", coString);
     def->label = L("Printer");
     def->tooltip = L("Name of the printer");
@@ -356,7 +356,7 @@ void PrintConfigDef::init_common_params()
     def->mode = comAdvanced;
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionString(""));
-    
+
     def = this->add("printhost_cafile", coString);
     def->label = L("HTTPS CA File");
     def->tooltip = L("Custom CA certificate file can be specified for HTTPS OctoPrint connections, in crt/pem format. "
@@ -364,16 +364,16 @@ void PrintConfigDef::init_common_params()
     def->mode = comAdvanced;
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionString(""));
-    
+
     // Options used by physical printers
-    
+
     def = this->add("printhost_user", coString);
     def->label = L("User");
 //    def->tooltip = L("");
     def->mode = comAdvanced;
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionString(""));
-    
+
     def = this->add("printhost_password", coString);
     def->label = L("Password");
 //    def->tooltip = L("");
@@ -389,7 +389,7 @@ void PrintConfigDef::init_common_params()
     def->mode = comAdvanced;
     def->cli = ConfigOptionDef::nocli;
     def->set_default_value(new ConfigOptionBool(false));
-    
+
     def = this->add("preset_names", coStrings);
     def->label = L("Printer preset names");
     def->tooltip = L("Names of presets related to the physical printer");
@@ -710,7 +710,7 @@ void PrintConfigDef::init_fff_params()
         { "no_brim",         L("No brim") },
         { "outer_only",      L("Outer brim only") },
         { "inner_only",      L("Inner brim only") },
-        { "outer_and_inner", L("Outer and inner brim") } 
+        { "outer_and_inner", L("Outer and inner brim") }
     });
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionEnum<BrimType>(btOuterOnly));
@@ -965,7 +965,7 @@ void PrintConfigDef::init_fff_params()
     def->tooltip = L("The extruder to use (unless more specific extruder settings are specified). "
                    "This value overrides perimeter and infill extruders, but not the support extruders.");
     def->min = 0;  // 0 = inherit defaults
-    def->set_enum_labels(ConfigOptionDef::GUIType::i_enum_open, 
+    def->set_enum_labels(ConfigOptionDef::GUIType::i_enum_open,
         { L("default"), "1", "2", "3", "4", "5" }); // override label for item 0
 
     def = this->add("extruder_clearance_height", coFloat);
@@ -1226,11 +1226,11 @@ void PrintConfigDef::init_fff_params()
     def->tooltip = L("The filament material type for use in custom G-codes.");
     def->gui_flags = "show_value";
     def->set_enum_values(ConfigOptionDef::GUIType::select_open, {
-        "PLA", 
+        "PLA",
         "PET",
         "ABS",
         "ASA",
-        "FLEX", 
+        "FLEX",
         "HIPS",
         "EDGE",
         "NGEN",
@@ -1326,7 +1326,7 @@ void PrintConfigDef::init_fff_params()
     def->set_enum<InfillPattern>({
         { "rectilinear",        L("Rectilinear") },
         { "alignedrectilinear", L("Aligned Rectilinear") },
-        { "grid",               L("Grid") }, 
+        { "grid",               L("Grid") },
         { "triangles",          L("Triangles")},
         { "stars",              L("Stars")},
         { "cubic",              L("Cubic")},
@@ -2011,31 +2011,175 @@ void PrintConfigDef::init_fff_params()
     def->mode = comExpert;
     def->set_default_value(new ConfigOptionBool(false));
 
-    def = this->add("small_area_infill_flow_compensation_max_length", coInt);
-    def->label = L("Maximum extrusion length");
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_0", coFloat);
+    def->label = L("Extrusion length");
     def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
     def->sidetext = L("mm");
     def->min = 0;
     def->max = 100;
     def->mode = comExpert;
-    def->set_default_value(new ConfigOptionInt(17));
+    def->set_default_value(new ConfigOptionFloat(0));
 
-    def = this->add("small_area_infill_flow_compensation_minimum_flow", coPercent);
-    def->label = L("Minimum flow percent");
-    def->tooltip = L("Limit flow reduction to this percentage of original flow");
-    def->sidetext = L("%");
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_1", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
     def->min = 0;
     def->max = 100;
     def->mode = comExpert;
-    def->set_default_value(new ConfigOptionPercent(30));
+    def->set_default_value(new ConfigOptionFloat(0.2));
 
-    def = this->add("small_area_infill_flow_compensation_flow_dropoff", coInt);
-    def->label = L("Flow drop off");
-    def->tooltip = L("How exponential the flow drop off is (multiple of 2)");
-    def->min = 2;
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_2", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
     def->max = 100;
     def->mode = comExpert;
-    def->set_default_value(new ConfigOptionInt(12));
+    def->set_default_value(new ConfigOptionFloat(0.4));
+
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_3", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.6));
+
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_4", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.8));
+
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_5", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(1.5));
+
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_6", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(2));
+
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_7", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(3));
+
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_8", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(5));
+
+    def = this->add("small_area_infill_flow_compensation_extrusion_length_9", coFloat);
+    def->label = L("Extrusion length");
+    def->tooltip = L("Extrusion length up to which the flow compensation applies. Typical range is 0-20mm.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(10));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_0", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_1", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.4444));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_2", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.6145));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_3", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.7059));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_4", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.7619));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_5", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.8571));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_6", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.8889));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_7", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.9231));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_8", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0.9520));
+
+    def = this->add("small_area_infill_flow_compensation_compensation_factor_9", coFloat);
+    def->label = L("Compensation Factor");
+    def->tooltip = L("Compensation factor to apply to the extrusion amount");
+    def->min = 0;
+    def->max = 1;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(1));
 
     def = this->add("min_fan_speed", coInts);
     def->label = L("Min");
@@ -2983,7 +3127,7 @@ void PrintConfigDef::init_fff_params()
                      "will create more stable supports, while snug support towers will save material and reduce "
                      "object scarring.");
     def->set_enum<SupportMaterialStyle>({
-        { "grid", L("Grid") }, 
+        { "grid", L("Grid") },
         { "snug", L("Snug") },
         { "organic", L("Organic") }
     });
@@ -3070,7 +3214,7 @@ void PrintConfigDef::init_fff_params()
     def->set_default_value(new ConfigOptionFloat(2));
 
     def = this->add("support_tree_branch_diameter_angle", coFloat);
-    // TRN PrintSettings: #lmFIXME 
+    // TRN PrintSettings: #lmFIXME
     def->label = L("Branch Diameter Angle");
     def->category = L("Support material");
     // TRN PrintSettings: "Organic supports" > "Branch Diameter Angle"
@@ -3096,10 +3240,10 @@ void PrintConfigDef::init_fff_params()
     def->set_default_value(new ConfigOptionFloat(3));
 
     // Tree Support Branch Distance
-    // How far apart the branches need to be when they touch the model. Making this distance small will cause 
+    // How far apart the branches need to be when they touch the model. Making this distance small will cause
     // the tree support to touch the model at more points, causing better overhang but making support harder to remove.
     def = this->add("support_tree_branch_distance", coFloat);
-    // TRN PrintSettings: #lmFIXME 
+    // TRN PrintSettings: #lmFIXME
     def->label = L("Branch Distance");
     def->category = L("Support material");
     // TRN PrintSettings: "Organic supports" > "Branch Distance"
@@ -3667,7 +3811,7 @@ void PrintConfigDef::init_sla_support_params(const std::string &prefix)
     def->label = L("Pillar widening factor");
     def->category = L("Supports");
 
-    def->tooltip  = 
+    def->tooltip  =
         L("Merging bridges or pillars into another pillars can "
         "increase the radius. Zero means no increase, one means "
         "full increase. The exact amount of increase is unspecified and can "
@@ -3887,7 +4031,7 @@ void PrintConfigDef::init_sla_params()
                       "to the sign of the correction.");
     def->mode = comExpert;
     def->set_default_value(new ConfigOptionFloat(0.0));
-    
+
     def = this->add("elefant_foot_min_width", coFloat);
     def->label = L("Elephant foot minimum width");
     def->category = L("Advanced");
@@ -4059,7 +4203,7 @@ void PrintConfigDef::init_sla_params()
     def->full_width = true;
     def->height = 13;
     // TODO currently notes are the only way to pass data
-    // for non-PrusaResearch printers. We therefore need to always show them 
+    // for non-PrusaResearch printers. We therefore need to always show them
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionString(""));
 
@@ -4164,7 +4308,7 @@ void PrintConfigDef::init_sla_params()
     def->max = 30;
     def->mode = comExpert;
     def->set_default_value(new ConfigOptionFloat(0.));
-    
+
     def = this->add("pad_brim_size", coFloat);
     def->label = L("Pad brim size");
     def->tooltip = L("How far should the pad extend around the contained geometry");
@@ -4215,7 +4359,7 @@ void PrintConfigDef::init_sla_params()
     def->tooltip = L("Create pad around object and ignore the support elevation");
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionBool(false));
-    
+
     def = this->add("pad_around_object_everywhere", coBool);
     def->label = L("Pad around object everywhere");
     def->category = L("Pad");
@@ -4261,14 +4405,14 @@ void PrintConfigDef::init_sla_params()
     def->min = 0;
     def->mode = comExpert;
     def->set_default_value(new ConfigOptionFloat(0.3));
-    
+
     def = this->add("hollowing_enable", coBool);
     def->label = L("Enable hollowing");
     def->category = L("Hollowing");
     def->tooltip = L("Hollow out a model to have an empty interior");
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionBool(false));
-    
+
     def = this->add("hollowing_min_thickness", coFloat);
     def->label = L("Wall thickness");
     def->category = L("Hollowing");
@@ -4278,7 +4422,7 @@ void PrintConfigDef::init_sla_params()
     def->max = 10;
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionFloat(3.));
-    
+
     def = this->add("hollowing_quality", coFloat);
     def->label = L("Accuracy");
     def->category = L("Hollowing");
@@ -4287,7 +4431,7 @@ void PrintConfigDef::init_sla_params()
     def->max = 1;
     def->mode = comExpert;
     def->set_default_value(new ConfigOptionFloat(0.5));
-    
+
     def = this->add("hollowing_closing_distance", coFloat);
     def->label = L("Closing distance");
     def->category = L("Hollowing");
@@ -4467,7 +4611,7 @@ DynamicPrintConfig* DynamicPrintConfig::new_from_defaults_keys(const std::vector
 }
 
 double min_object_distance(const ConfigBase &cfg)
-{   
+{
     const ConfigOptionEnum<PrinterTechnology> *opt_printer_technology = cfg.option<ConfigOptionEnum<PrinterTechnology>>("printer_technology");
     auto printer_technology = opt_printer_technology ? opt_printer_technology->value : ptUnknown;
 
@@ -4480,7 +4624,7 @@ double min_object_distance(const ConfigBase &cfg)
         auto dd_opt  = cfg.option<ConfigOptionFloat>("duplicate_distance");
         auto co_opt  = cfg.option<ConfigOptionBool>("complete_objects");
 
-        if (!ecr_opt || !dd_opt || !co_opt) 
+        if (!ecr_opt || !dd_opt || !co_opt)
             ret = 0.;
         else {
             // min object distance is max(duplicate_distance, clearance_radius)
@@ -4825,7 +4969,7 @@ std::string validate(const FullPrintConfig &cfg)
         return ret; \
     }
 PRINT_CONFIG_CACHE_INITIALIZE((
-    PrintObjectConfig, PrintRegionConfig, MachineEnvelopeConfig, GCodeConfig, PrintConfig, FullPrintConfig, 
+    PrintObjectConfig, PrintRegionConfig, MachineEnvelopeConfig, GCodeConfig, PrintConfig, FullPrintConfig,
     SLAMaterialConfig, SLAPrintConfig, SLAPrintObjectConfig, SLAPrinterConfig, SLAFullPrintConfig))
 static int print_config_static_initialized = print_config_static_initializer();
 
@@ -5099,22 +5243,22 @@ static Points to_points(const std::vector<Vec2d> &dpts)
     Points pts; pts.reserve(dpts.size());
     for (auto &v : dpts)
         pts.emplace_back( coord_t(scale_(v.x())), coord_t(scale_(v.y())) );
-    return pts;    
+    return pts;
 }
 
 Points get_bed_shape(const DynamicPrintConfig &config)
 {
     const auto *bed_shape_opt = config.opt<ConfigOptionPoints>("bed_shape");
     if (!bed_shape_opt) {
-        
+
         // Here, it is certain that the bed shape is missing, so an infinite one
         // has to be used, but still, the center of bed can be queried
         if (auto center_opt = config.opt<ConfigOptionPoint>("center"))
             return { scaled(center_opt->value) };
-        
+
         return {};
     }
-    
+
     return to_points(bed_shape_opt->values);
 }
 
