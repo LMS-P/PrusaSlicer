@@ -32,6 +32,7 @@
 @ECHO                  app-dirty - build main applications without cleaning
 @ECHO                  deps - clean and build deps
 @ECHO                  deps-dirty - build deps without cleaning
+@ECHO                  pack - pack deps for upload
 @ECHO                Default: %PS_STEPS_DEFAULT%
 @ECHO  -r -RUN       Specifies what to perform at the run step:
 @ECHO                  console - run and wait on prusa-slicer-console.exe
@@ -129,11 +130,11 @@ CALL :PARSE_OPTION_VALUE %PS_CONFIG_LIST:;= % PS_CONFIG
 IF "%PS_CONFIG%" EQU "" GOTO :HELP
 CALL :PARSE_OPTION_VALUE "normal low" PS_PRIORITY
 SET PS_PRIORITY=%PS_PRIORITY:normal= %
-SET PS_PRIORITY=%PS_PRIORITY:low=-low% 
+SET PS_PRIORITY=%PS_PRIORITY:low=-low%
 REM RESOLVE_DESTDIR_CACHE must go after PS_ARCH and PS_CONFIG, but before PS STEPS
 CALL :RESOLVE_DESTDIR_CACHE
 IF "%PS_STEPS%" EQU "" SET PS_STEPS=%PS_STEPS_DEFAULT%
-CALL :PARSE_OPTION_VALUE "all all-dirty deps-dirty deps app-dirty app app-cmake" PS_STEPS
+CALL :PARSE_OPTION_VALUE "all all-dirty deps-dirty deps app-dirty app app-cmake pack" PS_STEPS
 IF "%PS_STEPS%" EQU "" GOTO :HELP
 (echo %PS_STEPS%)| findstr /I /C:"dirty">nul && SET PS_STEPS_DIRTY=1 || SET PS_STEPS_DIRTY=
 IF "%PS_STEPS%" EQU "app-cmake" SET PS_STEPS_DIRTY=1
@@ -149,7 +150,6 @@ IF "%PS_DESTDIR%" NEQ "%PS_DESTDIR_CACHED%" (
             @ECHO WARNING: DESTDIR does not match cache: 1>&2
             @ECHO WARNING:  new: %PS_DESTDIR% 1>&2
             @ECHO WARNING:  old: %PS_DESTDIR_CACHED% 1>&2
-            SET PS_ASK_TO_CONTINUE=1
         ) ELSE (
             @ECHO ERROR: Invalid parameter: DESTDIR=%PS_DESTDIR% 1>&2
             GOTO :HELP
@@ -205,6 +205,8 @@ IF "%PS_DRY_RUN_ONLY%" NEQ "" (
     GOTO :END
 )
 IF /I "%PS_STEPS:~0,3%" EQU "app" GOTO :BUILD_APP
+IF /I "%PS_STEPS:~0,4%" EQU "pack" GOTO :PACK_DEPS
+IF /I "%PS_STEPS:~0,4%" EQU "deps" GOTO :BUILD_DEPS
 
 REM Build deps
 :BUILD_DEPS
@@ -223,6 +225,20 @@ IF %ERRORLEVEL% NEQ 0 IF "%PS_STEPS_DIRTY%" NEQ "" (
 msbuild /m ALL_BUILD.vcxproj /p:Configuration=%PS_CONFIG% /v:quiet %PS_PRIORITY% || GOTO :END
 cd ..\..
 IF /I "%PS_STEPS:~0,4%" EQU "deps" GOTO :RUN_APP
+GOTO :BUILD_APP
+
+:PACK_DEPS
+setlocal enableDelayedExpansion
+cd deps\build || GOTO :END
+for /f "tokens=2-4 delims=/ " %%a in ('date /t') do set build_date=%%c%%a%%b
+@ECHO packing deps: PrusaSlicer_dep_win64_!build_date!_vs2022.zip
+where 7z >nul 2>nul || (
+    @ECHO ERROR: 7z not found on PATH 1>&2
+    GOTO :END
+)
+7z a PrusaSlicer_dep_win64_!build_date!_vs2022.zip PrusaSlicer_dep || GOTO :END
+endlocal
+GOTO :RUN_APP
 
 REM Build app
 :BUILD_APP
