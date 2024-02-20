@@ -276,6 +276,12 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
                     "bridge_jerk", "first_layer_jerk", "travel_jerk" })
         toggle_field(el, have_default_jerk);
 
+    bool have_accel_to_decel = have_default_jerk && config->opt_enum<GCodeFlavor>("gcode_flavor") == gcfKlipper;
+    for (auto el : { "perimeter_accel_to_decel", "infill_accel_to_decel", "top_solid_infill_accel_to_decel",
+                    "solid_infill_accel_to_decel", "external_perimeter_accel_to_decel", "external_perimeter_accel_to_decel",
+                    "bridge_accel_to_decel", "first_layer_accel_to_decel", "travel_accel_to_decel" })
+        toggle_field(el, have_accel_to_decel);
+
     bool have_skirt = config->opt_int("skirts") > 0;
     toggle_field("skirt_height", have_skirt && config->opt_enum<DraftShield>("draft_shield") != dsEnabled);
     for (auto el : { "skirt_distance", "draft_shield", "min_skirt_length" })
@@ -321,7 +327,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("support_material_speed", have_support_material || have_brim || have_skirt);
 
     toggle_field("raft_contact_distance", have_raft && !have_support_soluble);
-    for (auto el : { "raft_expansion", "first_layer_acceleration_over_raft", "first_layer_jerk_over_raft", "first_layer_speed_over_raft" })
+    for (auto el : { "raft_expansion", "first_layer_acceleration_over_raft", "first_layer_jerk_over_raft",
+                    "first_layer_accel_to_decel_over_raft", "first_layer_speed_over_raft" })
         toggle_field(el, have_raft);
 
     bool has_ironing = config->opt_bool("ironing");
