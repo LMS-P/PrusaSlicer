@@ -327,7 +327,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("support_material_speed", have_support_material || have_brim || have_skirt);
 
     toggle_field("raft_contact_distance", have_raft && !have_support_soluble);
-    for (auto el : { "raft_expansion", "first_layer_acceleration_over_raft", "first_layer_jerk_over_raft",
+    for (auto el : { "raft_expansion", "first_layer_acceleration_over_raft", "first_layer_jerk_over_raft", 
                     "first_layer_accel_to_decel_over_raft", "first_layer_speed_over_raft" })
         toggle_field(el, have_raft);
 
