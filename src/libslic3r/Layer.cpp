@@ -95,7 +95,7 @@ void Layer::make_slices()
 // Use the default zero edge merging distance. For this kind of safety offset the accuracy of normal direction is not important.
 //    co.ShortestEdgeLength = delta * ClipperOffsetShortestEdgeFactor;
 //    static constexpr const double accept_area_threshold_ccw = sqr(scaled<double>(0.1 * delta));
-    // Such a small hole should not survive the shrinkage, it should grow over 
+    // Such a small hole should not survive the shrinkage, it should grow over
 //    static constexpr const double accept_area_threshold_cw  = sqr(scaled<double>(0.2 * delta));
 
     for (const ExPolygon &expoly : expolygons) {
@@ -186,7 +186,7 @@ static void connect_layer_slices(
 {
     class Visitor {
     public:
-        Visitor(const std::vector<std::pair<coord_t, coord_t>> &intersections, 
+        Visitor(const std::vector<std::pair<coord_t, coord_t>> &intersections,
             Layer &below, Layer &above, const coord_t offset_below, const coord_t offset_above
 #ifndef NDEBUG
             , const coord_t offset_end
@@ -194,7 +194,7 @@ static void connect_layer_slices(
             ) :
             m_intersections(intersections), m_below(below), m_above(above), m_offset_below(offset_below), m_offset_above(offset_above)
 #ifndef NDEBUG
-            , m_offset_end(offset_end) 
+            , m_offset_end(offset_end)
 #endif // NDEBUG
             {}
 
@@ -440,7 +440,7 @@ static void connect_layer_slices(
                 // thus each point of each intersection polygon should fit completely inside one of the original (unshrunk) expolygons.
                 assert(false);
             }
-            // The comment below may not be valid anymore, see the comment above. However the code is used in case the polynode contains multiple references 
+            // The comment below may not be valid anymore, see the comment above. However the code is used in case the polynode contains multiple references
             // to other_layer expolygons, thus the references are not unique.
             //
             // The check above might sometimes fail when the polygons overlap only on points, which causes the clipper to detect no intersection.
@@ -624,7 +624,7 @@ ExPolygons Layer::merged(float offset_scaled) const
 void Layer::make_perimeters()
 {
     BOOST_LOG_TRIVIAL(trace) << "Generating perimeters for layer " << this->id();
-    
+
     // keep track of regions whose perimeters we have already generated
     std::vector<unsigned char>                              done(m_regions.size(), false);
     std::vector<uint32_t>                                   layer_region_ids;
@@ -655,7 +655,7 @@ void Layer::make_perimeters()
     	        BOOST_LOG_TRIVIAL(trace) << "Generating perimeters for layer " << this->id() << ", region " << region_id;
     	        done[region_id] = true;
     	        const PrintRegionConfig &config = (*layerm)->region().config();
-    	        
+
                 perimeter_and_gapfill_ranges.clear();
                 fill_expolygons.clear();
                 fill_expolygons_ranges.clear();
@@ -682,7 +682,7 @@ void Layer::make_perimeters()
     		                && config.perimeter_speed             == other_config.perimeter_speed
     		                && config.external_perimeter_speed    == other_config.external_perimeter_speed
                             && dynamic_overhang_speed_compatibility
-    		                && (config.gap_fill_enabled ? config.gap_fill_speed.value : 0.) == 
+    		                && (config.gap_fill_enabled ? config.gap_fill_speed.value : 0.) ==
                                (other_config.gap_fill_enabled ? other_config.gap_fill_speed.value : 0.)
     		                && config.overhangs                   == other_config.overhangs
     		                && config.opt_serialize("perimeter_extrusion_width") == other_config.opt_serialize("perimeter_extrusion_width")
@@ -692,6 +692,12 @@ void Layer::make_perimeters()
                             && config.fuzzy_skin                  == other_config.fuzzy_skin
                             && config.fuzzy_skin_thickness        == other_config.fuzzy_skin_thickness
                             && config.fuzzy_skin_point_dist       == other_config.fuzzy_skin_point_dist)
+                            && config.seam_slope_type         == other_config.seam_slope_type
+                            && config.seam_slope_start_height == other_config.seam_slope_start_height
+                            && config.seam_slope_entire_loop  == other_config.seam_slope_entire_loop
+                            && config.seam_slope_min_length   == other_config.seam_slope_min_length
+                            && config.seam_slope_steps        == other_config.seam_slope_steps
+                            && config.seam_slope_inner_walls  == other_config.seam_slope_inner_walls)
     		            {
                             layer_region_reset_perimeters(*other_layerm);
     		                layer_region_ids.push_back(it - m_regions.begin());
@@ -944,7 +950,7 @@ void Layer::sort_perimeters_into_islands(
 
     auto insert_into_island = [
         // Region where the perimeters, gap fills and fill expolygons are stored.
-        region_id, 
+        region_id,
         // Whether there are infills with different regions generated for this LayerSlice.
         has_multiple_regions,
         // Perimeters and gap fills to be sorted into islands.
@@ -978,7 +984,7 @@ void Layer::sort_perimeters_into_islands(
                     auto begin = uint32_t(this_layer_region.fill_expolygons_composite().size());
                     this_layer_region.m_fill_expolygons_composite.reserve(this_layer_region.fill_expolygons_composite().size() + fill_range.size());
                     std::move(fill_expolygons.begin() + *fill_range.begin(), fill_expolygons.begin() + *fill_range.end(), std::back_inserter(this_layer_region.m_fill_expolygons_composite));
-                    this_layer_region.m_fill_expolygons_composite_bboxes.insert(this_layer_region.m_fill_expolygons_composite_bboxes.end(), 
+                    this_layer_region.m_fill_expolygons_composite_bboxes.insert(this_layer_region.m_fill_expolygons_composite_bboxes.end(),
                         fill_expolygons_bboxes.begin() + *fill_range.begin(), fill_expolygons_bboxes.begin() + *fill_range.end());
                     island.fill_expolygons = ExPolygonRange(begin, uint32_t(this_layer_region.fill_expolygons_composite().size()));
                 } else {
@@ -1027,14 +1033,14 @@ void Layer::sort_perimeters_into_islands(
         const PrintRegionConfig &region_config = this_layer_region.region().config();
         const auto               bbox_eps      = scaled<coord_t>(
             EPSILON + print_config.gcode_resolution.value +
-            (region_config.fuzzy_skin.value == FuzzySkinType::None ? 0. : region_config.fuzzy_skin_thickness.value 
+            (region_config.fuzzy_skin.value == FuzzySkinType::None ? 0. : region_config.fuzzy_skin_thickness.value
                 //FIXME it looks as if Arachne could extend open lines by fuzzy_skin_point_dist, which does not seem right.
                 + region_config.fuzzy_skin_point_dist.value));
         auto point_inside_surface_dist2 =
             [&lslices = this->lslices, &lslices_ex = this->lslices_ex, bbox_eps]
             (const size_t lslice_idx, const Point &point) {
             const BoundingBox &bbox = lslices_ex[lslice_idx].bbox;
-            return 
+            return
                 point.x() < bbox.min.x() - bbox_eps || point.x() > bbox.max.x() + bbox_eps ||
                 point.y() < bbox.min.y() - bbox_eps || point.y() > bbox.max.y() + bbox_eps ?
                 std::numeric_limits<double>::max() :
@@ -1079,7 +1085,7 @@ void Layer::export_region_slices_to_svg(const char *path) const
         for (const auto &surface : region->slices())
             svg.draw(surface.expolygon, surface_type_to_color_name(surface.surface_type), transparency);
     export_surface_type_legend_to_svg(svg, legend_pos);
-    svg.Close(); 
+    svg.Close();
 }
 
 // Export to "out/LayerRegion-name-%d.svg" with an increasing index with every export.

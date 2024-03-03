@@ -71,9 +71,9 @@ class ExtrusionEntityReference final
 {
 public:
     ExtrusionEntityReference() = delete;
-    ExtrusionEntityReference(const ExtrusionEntity &extrusion_entity, bool flipped) : 
+    ExtrusionEntityReference(const ExtrusionEntity &extrusion_entity, bool flipped) :
         m_extrusion_entity(&extrusion_entity), m_flipped(flipped) {}
-    ExtrusionEntityReference operator=(const ExtrusionEntityReference &rhs) 
+    ExtrusionEntityReference operator=(const ExtrusionEntityReference &rhs)
         { m_extrusion_entity = rhs.m_extrusion_entity; m_flipped = rhs.m_flipped; return *this; }
 
     const ExtrusionEntity& extrusion_entity() const { return *m_extrusion_entity; }
@@ -91,7 +91,7 @@ using ExtrusionEntityReferences = std::vector<ExtrusionEntityReference>;
 struct ExtrusionFlow
 {
     ExtrusionFlow() = default;
-    ExtrusionFlow(double mm3_per_mm, float width, float height) : 
+    ExtrusionFlow(double mm3_per_mm, float width, float height) :
         mm3_per_mm{ mm3_per_mm }, width{ width }, height{ height } {}
     ExtrusionFlow(const Flow &flow) :
         mm3_per_mm(flow.mm3_per_mm()), width(flow.width()), height(flow.height()) {}
@@ -124,7 +124,7 @@ struct ExtrusionAttributes : ExtrusionFlow
 
     // What is the role / purpose of this extrusion?
     ExtrusionRole   role{ ExtrusionRole::None };
-    // OVerhangAttributes are currently computed for perimeters if dynamic overhangs are enabled. 
+    // OVerhangAttributes are currently computed for perimeters if dynamic overhangs are enabled.
     // They are used to control fan and print speed in export.
     std::optional<OverhangAttributes> overhang_attributes;
 };
@@ -169,7 +169,7 @@ public:
     void clip_end(double distance);
     void simplify(double tolerance);
     double length() const override;
-   
+
     const ExtrusionAttributes&  attributes() const { return m_attributes; }
     ExtrusionRole               role() const override { return m_attributes.role; }
     float                       width() const { return m_attributes.width; }
@@ -202,6 +202,42 @@ private:
     ExtrusionAttributes     m_attributes;
 };
 
+class ExtrusionPathSloped : public ExtrusionPath
+{
+public:
+    struct Slope
+    {
+        double z_ratio{1.};
+        double e_ratio{1.};
+    };
+
+    Slope slope_begin;
+    Slope slope_end;
+
+    ExtrusionPathSloped(const ExtrusionPath& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(rhs), slope_begin(begin), slope_end(end)
+    {}
+    ExtrusionPathSloped(ExtrusionPath&& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(std::move(rhs)), slope_begin(begin), slope_end(end)
+    {}
+    ExtrusionPathSloped(const Polyline& polyline, const ExtrusionPath& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(polyline, rhs), slope_begin(begin), slope_end(end)
+    {}
+    ExtrusionPathSloped(Polyline&& polyline, const ExtrusionPath& rhs, const Slope& begin, const Slope& end)
+        : ExtrusionPath(std::move(polyline), rhs), slope_begin(begin), slope_end(end)
+    {}
+
+    Slope interpolate(const double ratio) const
+    {
+        return {
+            lerp(slope_begin.z_ratio, slope_end.z_ratio, ratio),
+            lerp(slope_begin.e_ratio, slope_end.e_ratio, ratio),
+        };
+    }
+
+    bool is_flat() const { return is_approx(slope_begin.z_ratio, slope_end.z_ratio); }
+};
+
 class ExtrusionPathOriented : public ExtrusionPath
 {
 public:
@@ -222,7 +258,7 @@ class ExtrusionMultiPath : public ExtrusionEntity
 {
 public:
     ExtrusionPaths paths;
-    
+
     ExtrusionMultiPath() {}
     ExtrusionMultiPath(const ExtrusionMultiPath &rhs) : paths(rhs.paths) {}
     ExtrusionMultiPath(ExtrusionMultiPath &&rhs) : paths(std::move(rhs.paths)) {}
@@ -260,7 +296,7 @@ public:
     double min_mm3_per_mm() const override;
     Polyline as_polyline() const override;
     void   collect_polylines(Polylines &dst) const override { Polyline pl = this->as_polyline(); if (! pl.empty()) dst.emplace_back(std::move(pl)); }
-    void   collect_points(Points &dst) const override { 
+    void   collect_points(Points &dst) const override {
         size_t n = std::accumulate(paths.begin(), paths.end(), 0, [](const size_t n, const ExtrusionPath &p){ return n + p.polyline.size(); });
         dst.reserve(dst.size() + n);
         for (const ExtrusionPath &p : this->paths)
@@ -274,12 +310,12 @@ class ExtrusionLoop : public ExtrusionEntity
 {
 public:
     ExtrusionPaths paths;
-    
+
     ExtrusionLoop() = default;
     ExtrusionLoop(ExtrusionLoopRole role) : m_loop_role(role) {}
     ExtrusionLoop(const ExtrusionPaths &paths, ExtrusionLoopRole role = elrDefault) : paths(paths), m_loop_role(role) {}
     ExtrusionLoop(ExtrusionPaths &&paths, ExtrusionLoopRole role = elrDefault) : paths(std::move(paths)), m_loop_role(role) {}
-    ExtrusionLoop(const ExtrusionPath &path, ExtrusionLoopRole role = elrDefault) : m_loop_role(role) 
+    ExtrusionLoop(const ExtrusionPath &path, ExtrusionLoopRole role = elrDefault) : m_loop_role(role)
         { this->paths.push_back(path); }
     ExtrusionLoop(ExtrusionPath &&path, ExtrusionLoopRole role = elrDefault) : m_loop_role(role)
         { this->paths.emplace_back(std::move(path)); }
@@ -330,7 +366,7 @@ public:
     double min_mm3_per_mm() const override;
     Polyline as_polyline() const override { return this->polygon().split_at_first_point(); }
     void   collect_polylines(Polylines &dst) const override { Polyline pl = this->as_polyline(); if (! pl.empty()) dst.emplace_back(std::move(pl)); }
-    void   collect_points(Points &dst) const override { 
+    void   collect_points(Points &dst) const override {
         size_t n = std::accumulate(paths.begin(), paths.end(), 0, [](const size_t n, const ExtrusionPath &p){ return n + p.polyline.size(); });
         dst.reserve(dst.size() + n);
         for (const ExtrusionPath &p : this->paths)
@@ -349,6 +385,22 @@ public:
 
 private:
     ExtrusionLoopRole m_loop_role{ elrDefault };
+};
+
+class ExtrusionLoopSloped : public ExtrusionLoop
+{
+public:
+    std::vector<ExtrusionPathSloped> starts;
+    std::vector<ExtrusionPathSloped> ends;
+
+    ExtrusionLoopSloped(ExtrusionPaths& original_paths,
+                        double          seam_gap,
+                        double          slope_min_length,
+                        double          slope_max_segment_length,
+                        double          start_slope_ratio,
+                        ExtrusionLoopRole role = elrDefault);
+
+    [[nodiscard]] std::vector<const ExtrusionPath*> get_all_paths() const;
 };
 
 inline void extrusion_paths_append(ExtrusionPaths &dst, Polylines &polylines, const ExtrusionAttributes &attributes)

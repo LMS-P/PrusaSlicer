@@ -112,16 +112,16 @@ static float intersection_distance(float initial_rate, float final_rate, float a
 
 static float speed_from_distance(float initial_feedrate, float distance, float acceleration)
 {
-    // to avoid invalid negative numbers due to numerical errors 
+    // to avoid invalid negative numbers due to numerical errors
     float value = std::max(0.0f, sqr(initial_feedrate) + 2.0f * acceleration * distance);
     return ::sqrt(value);
 }
 
-// Calculates the maximum allowable speed at this point when you must be able to reach target_velocity using the 
+// Calculates the maximum allowable speed at this point when you must be able to reach target_velocity using the
 // acceleration within the allotted distance.
 static float max_allowable_speed(float acceleration, float target_velocity, float distance)
 {
-    // to avoid invalid negative numbers due to numerical errors 
+    // to avoid invalid negative numbers due to numerical errors
     float value = std::max(0.0f, sqr(target_velocity) - 2.0f * acceleration * distance);
     return std::sqrt(value);
 }
@@ -172,7 +172,7 @@ void GCodeProcessor::TimeBlock::calculate_trapezoid()
     float cruise_distance = distance - accelerate_distance - decelerate_distance;
 
     // Not enough space to reach the nominal feedrate.
-    // This means no cruising, and we'll have to use intersection_distance() to calculate when to abort acceleration 
+    // This means no cruising, and we'll have to use intersection_distance() to calculate when to abort acceleration
     // and start braking in order to reach the exit_feedrate exactly at the end of this block.
     if (cruise_distance < 0.0f) {
         accelerate_distance = std::clamp(intersection_distance(feedrate_profile.entry, feedrate_profile.exit, acceleration, distance), 0.0f, distance);
@@ -393,12 +393,12 @@ void GCodeProcessor::UsedFilaments::increase_caches(double extruded_volume, unsi
 {
     if (extruder_id >= extruder_retracted_volume.size())
         extruder_retracted_volume.resize(extruder_id + 1, parking_volume);
-    
+
     if (recent_toolchange) {
         extruded_volume -= extra_loading_volume;
         recent_toolchange = false;
     }
-    
+
     extruder_retracted_volume[extruder_id] -= extruded_volume;
 
     if (extruder_retracted_volume[extruder_id] < 0.) {
@@ -673,7 +673,11 @@ for (size_t i = 0; i < static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::
 
     const ConfigOptionBool* spiral_vase = config.option<ConfigOptionBool>("spiral_vase");
     if (spiral_vase != nullptr)
-        m_spiral_vase_active = spiral_vase->value;
+        m_detect_layer_based_on_tag = spiral_vase->value;
+
+    const ConfigOptionBool* has_scarf_joint_seam = config.option<ConfigOptionBool>("has_scarf_joint_seam");
+    if (has_scarf_joint_seam != nullptr)
+        m_detect_layer_based_on_tag = m_detect_layer_based_on_tag || has_scarf_joint_seam->value;
 
     const ConfigOptionFloat* z_offset = config.option<ConfigOptionFloat>("z_offset");
     if (z_offset != nullptr)
@@ -759,7 +763,7 @@ void GCodeProcessor::apply_config(const DynamicPrintConfig& config)
             m_extruder_offsets[i] = { offset(0), offset(1), 0.0f };
         }
     }
-    
+
     if (m_extruder_offsets.size() < m_result.extruders_count) {
         for (size_t i = m_extruder_offsets.size(); i < m_result.extruders_count; ++i) {
             m_extruder_offsets.emplace_back(DEFAULT_EXTRUDER_OFFSET);
@@ -955,7 +959,11 @@ void GCodeProcessor::apply_config(const DynamicPrintConfig& config)
 
     const ConfigOptionBool* spiral_vase = config.option<ConfigOptionBool>("spiral_vase");
     if (spiral_vase != nullptr)
-        m_spiral_vase_active = spiral_vase->value;
+        m_detect_layer_based_on_tag = spiral_vase->value;
+
+    const ConfigOptionBool* has_scarf_joint_seam = config.option<ConfigOptionBool>("has_scarf_joint_seam");
+    if (has_scarf_joint_seam != nullptr)
+        m_detect_layer_based_on_tag = m_detect_layer_based_on_tag || has_scarf_joint_seam->value;
 
     const ConfigOptionFloat* z_offset = config.option<ConfigOptionFloat>("z_offset");
     if (z_offset != nullptr)
@@ -1026,11 +1034,12 @@ void GCodeProcessor::reset()
 
     m_options_z_corrector.reset();
 
-    m_spiral_vase_active = false;
+    m_detect_layer_based_on_tag = false;
     m_kissslicer_toolchange_time_correction = 0.0f;
 
     m_single_extruder_multi_material = false;
 
+    m_seams_count = 0;
 #if ENABLE_GCODE_VIEWER_DATA_CHECKING
     m_mm3_per_mm_compare.reset();
     m_height_compare.reset();
@@ -1166,7 +1175,7 @@ void GCodeProcessor::process_binary_file(const std::string& filename, std::funct
     FileHeader file_header;
     EResult res = read_header(*file.f, file_header, nullptr);
     if (res != EResult::Success)
-        throw Slic3r::RuntimeError(format("File %1% does not contain a valid binary gcode\nError: %2%", filename, 
+        throw Slic3r::RuntimeError(format("File %1% does not contain a valid binary gcode\nError: %2%", filename,
             std::string(translate_result(res))));
 
     // read file metadata block, if present
@@ -1175,7 +1184,7 @@ void GCodeProcessor::process_binary_file(const std::string& filename, std::funct
     res = read_next_block_header(*file.f, file_header, block_header, cs_buffer.data(), cs_buffer.size());
     if (res != EResult::Success)
         throw Slic3r::RuntimeError(format("Error reading file %1%: %2%", filename, std::string(translate_result(res))));
-    if ((EBlockType)block_header.type != EBlockType::FileMetadata && 
+    if ((EBlockType)block_header.type != EBlockType::FileMetadata &&
         (EBlockType)block_header.type != EBlockType::PrinterMetadata)
         throw Slic3r::RuntimeError(format("Unable to find file metadata block in file %1%", filename));
     if ((EBlockType)block_header.type == EBlockType::FileMetadata) {
@@ -1302,7 +1311,7 @@ void GCodeProcessor::initialize(const std::string& filename)
 void GCodeProcessor::process_buffer(const std::string &buffer)
 {
     //FIXME maybe cache GCodeLine gline to be over multiple parse_buffer() invocations.
-    m_parser.parse_buffer(buffer, [this](GCodeReader&, const GCodeReader::GCodeLine& line) { 
+    m_parser.parse_buffer(buffer, [this](GCodeReader&, const GCodeReader::GCodeLine& line) {
         this->process_gcode_line(line, false);
     });
 }
@@ -1566,7 +1575,7 @@ void GCodeProcessor::apply_config_simplify3d(const std::string& filename)
             }
             return false;
         };
-        
+
         begin = skip_whitespaces(begin, end);
         end   = remove_eols(begin, end);
         if (begin != end) {
@@ -1606,7 +1615,7 @@ void GCodeProcessor::apply_config_simplify3d(const std::string& filename)
     });
 
     if (m_result.extruders_count == 0)
-        m_result.extruders_count = std::max<size_t>(1, std::min(m_result.filament_diameters.size(), 
+        m_result.extruders_count = std::max<size_t>(1, std::min(m_result.filament_diameters.size(),
             std::min(m_result.filament_densities.size(), m_result.filament_cost.size())));
 
     if (bed_size.is_defined()) {
@@ -1836,7 +1845,7 @@ template<typename T>
         auto str_end = sv.data() + sv.size();
         auto [end_ptr, error_code] = std::from_chars(sv.data(), str_end, out);
         return error_code == std::errc() && end_ptr == str_end;
-    } 
+    }
     else
 #endif
     {
@@ -1995,12 +2004,12 @@ void GCodeProcessor::process_tags(const std::string_view comment, bool producers
     // layer change tag
     if (comment == reserved_tag(ETags::Layer_Change)) {
         ++m_layer_id;
-        if (m_spiral_vase_active) {
+        if (m_detect_layer_based_on_tag) {
             if (m_result.moves.empty() || m_result.spiral_vase_layers.empty())
                 // add a placeholder for layer height. the actual value will be set inside process_G1() method
                 m_result.spiral_vase_layers.push_back({ FLT_MAX, { 0, 0 } });
             else {
-                const size_t move_id = m_result.moves.size() - 1;
+                const size_t move_id = m_result.moves.size() - 1 - m_seams_count;
                 if (!m_result.spiral_vase_layers.empty())
                     m_result.spiral_vase_layers.back().second.second = move_id;
                 // add a placeholder for layer height. the actual value will be set inside process_G1() method
@@ -2025,7 +2034,7 @@ bool GCodeProcessor::process_producers_tags(const std::string_view comment)
     switch (m_producer)
     {
     case EProducer::Slic3rPE:
-    case EProducer::Slic3r: 
+    case EProducer::Slic3r:
     case EProducer::SuperSlicer:
     case EProducer::PrusaSlicer: { return process_prusaslicer_tags(comment); }
     case EProducer::Cura:        { return process_cura_tags(comment); }
@@ -2133,7 +2142,7 @@ bool GCodeProcessor::process_simplify3d_tags(const std::string_view comment)
         set_extrusion_role(GCodeExtrusionRole::Skirt);
         return true;
     }
-    
+
     // ; outer perimeter
     pos = cmt.find(" outer perimeter");
     if (pos == 0) {
@@ -2649,10 +2658,10 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
             m_height = m_forced_height;
         else if (m_layer_id == 0) { // first layer
             if (m_end_position[Z] > 0.0f)
-                // use the current (clamped) z, if greater than zero  
+                // use the current (clamped) z, if greater than zero
                 m_height = std::min<float>(m_end_position[Z], 2.0f);
             else
-                // use the first layer height  
+                // use the first layer height
                 m_height = m_first_layer_height + m_z_offset;
         }
         else if (origin == G1DiscretizationOrigin::G1) {
@@ -2859,8 +2868,18 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
 
     if (m_seams_detector.is_active()) {
         // check for seam starting vertex
-        if (type == EMoveType::Extrude && m_extrusion_role == GCodeExtrusionRole::ExternalPerimeter && !m_seams_detector.has_first_vertex())
-            m_seams_detector.set_first_vertex(m_result.moves.back().position - m_extruder_offsets[m_extruder_id]);
+        if (type == EMoveType::Extrude && m_extrusion_role == GCodeExtrusionRole::ExternalPerimeter) {
+            const Vec3f new_pos = m_result.moves.back().position - m_extruder_offsets[m_extruder_id] - plate_offset;
+            if (!m_seams_detector.has_first_vertex()) {
+                m_seams_detector.set_first_vertex(new_pos);
+            } else if (m_detect_layer_based_on_tag) {
+                // We may have sloped loop, drop any previous start pos if we have z increment
+                const std::optional<Vec3f> first_vertex = m_seams_detector.get_first_vertex();
+                if (new_pos.z() > first_vertex->z()) {
+                    m_seams_detector.set_first_vertex(new_pos);
+                }
+            }
+        }
         // check for seam ending vertex and store the resulting move
         else if ((type != EMoveType::Extrude || (m_extrusion_role != GCodeExtrusionRole::ExternalPerimeter && m_extrusion_role != GCodeExtrusionRole::OverhangPerimeter)) && m_seams_detector.has_first_vertex()) {
             auto set_end_position = [this](const Vec3f& pos) {
@@ -2886,12 +2905,18 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
         m_seams_detector.set_first_vertex(m_result.moves.back().position - m_extruder_offsets[m_extruder_id]);
     }
 
-    if (m_spiral_vase_active && !m_result.spiral_vase_layers.empty()) {
-        if (m_result.spiral_vase_layers.back().first == FLT_MAX && delta_pos[Z] >= 0.0)
+    if (m_detect_layer_based_on_tag && !m_result.spiral_vase_layers.empty()) {
+        if (delta_pos[Z] >= 0.0 && type == EMoveType::Extrude) {
+            const float current_z = static_cast<float>(m_end_position[Z]);
             // replace layer height placeholder with correct value
-            m_result.spiral_vase_layers.back().first = static_cast<float>(m_end_position[Z]);
+            if (m_result.spiral_vase_layers.back().first == FLT_MAX) {
+                m_result.spiral_vase_layers.back().first = current_z;
+            } else {
+                m_result.spiral_vase_layers.back().first = std::max(m_result.spiral_vase_layers.back().first, current_z);
+            }
+        }
         if (!m_result.moves.empty())
-            m_result.spiral_vase_layers.back().second.second = m_result.moves.size() - 1;
+            m_result.spiral_vase_layers.back().second.second = m_result.moves.size() - 1 - m_seams_count;
     }
 
     // store move
@@ -3095,7 +3120,7 @@ void GCodeProcessor::process_G2_G3(const GCodeReader::GCodeLine& line, bool cloc
 
     for (size_t i = 1; i < segments; ++i) {
         if (count < N_ARC_CORRECTION) {
-            // Apply vector rotation matrix 
+            // Apply vector rotation matrix
             const float r_axisi = curr_rel_arc_start.x() * sin_T + curr_rel_arc_start.y() * cos_T;
             curr_rel_arc_start.x() = curr_rel_arc_start.x() * cos_T - curr_rel_arc_start.y() * sin_T;
             curr_rel_arc_start.y() = r_axisi;
@@ -3282,7 +3307,7 @@ void GCodeProcessor::process_G92(const GCodeReader::GCodeLine& line)
         simulate_st_synchronize();
 
     if (!any_found && !line.has_unknown_axis()) {
-        // The G92 may be called for axes that PrusaSlicer does not recognize, for example see GH issue #3510, 
+        // The G92 may be called for axes that PrusaSlicer does not recognize, for example see GH issue #3510,
         // where G92 A0 B0 is called although the extruder axis is till E.
         for (unsigned char a = X; a <= E; ++a) {
             m_origin[a] = m_end_position[a];
@@ -3855,7 +3880,7 @@ void GCodeProcessor::post_process()
         // gcode lines cache
         std::deque<LineData> m_lines;
         size_t m_added_lines_counter{ 0 };
-        // map of gcode line ids from original to final 
+        // map of gcode line ids from original to final
         // used to update m_result.moves[].gcode_id
         std::vector<std::pair<size_t, size_t>> m_gcode_lines_map;
 
@@ -4426,6 +4451,10 @@ void GCodeProcessor::store_move_vertex(EMoveType type, bool internal_only)
         internal_only
     });
 
+    if (type == EMoveType::Seam) {
+        m_seams_count++;
+    }
+
     // stores stop time placeholders for later use
     if (type == EMoveType::Color_change || type == EMoveType::Pause_Print) {
         for (size_t i = 0; i < static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Count); ++i) {
@@ -4640,4 +4669,3 @@ double GCodeProcessor::extract_absolute_position_on_axis(Axis axis, const GCodeR
 }
 
 } /* namespace Slic3r */
-

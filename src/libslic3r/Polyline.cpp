@@ -25,7 +25,7 @@ const Point& Polyline::leftmost_point() const
 {
     const Point *p = &this->points.front();
     for (Points::const_iterator it = this->points.begin() + 1; it != this->points.end(); ++ it) {
-        if (it->x() < p->x()) 
+        if (it->x() < p->x())
         	p = &(*it);
     }
     return *p;
@@ -99,7 +99,7 @@ Points Polyline::equally_spaced_points(double distance) const
     Points points;
     points.emplace_back(this->first_point());
     double len = 0;
-    
+
     for (Points::const_iterator it = this->points.begin() + 1; it != this->points.end(); ++it) {
         Vec2d  p1 = (it-1)->cast<double>();
         Vec2d  v  = it->cast<double>() - p1;
@@ -131,7 +131,7 @@ template <class T>
 void Polyline::simplify_by_visibility(const T &area)
 {
     Points &pp = this->points;
-    
+
     size_t s = 0;
     bool did_erase = false;
     for (size_t i = s+2; i < pp.size(); i = s + 2) {
@@ -179,11 +179,59 @@ void Polyline::split_at(const Point &point, Polyline* p1, Polyline* p2) const
     p1->points.assign(this->points.cbegin(), min_point_it);
     if (p1->points.back() != point)
         p1->points.emplace_back(point);
-    
+
     p2->points = { point };
     if (*min_point_it == point)
         ++ min_point_it;
     p2->points.insert(p2->points.end(), min_point_it, this->points.cend());
+}
+
+bool Polyline::split_at_length(const double length, Polyline* p1, Polyline* p2) const
+{
+    if (this->points.empty()) return false;
+    if (length < 0 || length > this->length()) {
+        return false;
+    }
+
+    if (length < SCALED_EPSILON) {
+        p1->clear();
+        p1->append(this->first_point());
+        *p2 = *this;
+    } else if (is_approx(length, this->length(), SCALED_EPSILON)) {
+        p2->clear();
+        p2->append(this->last_point());
+        *p1 = *this;
+    } else {
+        // 1 find the line to split at
+        size_t line_idx = 0;
+        double acc_length = 0;
+        Point p = this->first_point();
+        for (const auto& l : this->lines()) {
+            p = l.b;
+
+            const double current_length = l.length();
+            if (acc_length + current_length >= length) {
+                p = lerp(l.a, l.b, (length - acc_length) / current_length);
+                break;
+            }
+            acc_length += current_length;
+            line_idx++;
+        }
+
+        //2 judge whether the cloest point is one vertex of polyline.
+        //  and spilit the polyline at different index
+        int index = this->find_point(p);
+        if (index != -1) {
+            this->split_at_index(index, p1, p2);
+        } else {
+            Polyline temp;
+            this->split_at_index(line_idx, p1, &temp);
+            p1->append(p);
+            this->split_at_index(line_idx + 1, &temp, p2);
+            p2->append_before(p);
+        }
+    }
+    return true;
 }
 
 bool Polyline::is_straight() const
@@ -261,7 +309,7 @@ bool remove_degenerate(Polylines &polylines)
     size_t j = 0;
     for (size_t i = 0; i < polylines.size(); ++ i) {
         if (polylines[i].points.size() >= 2) {
-            if (j < i) 
+            if (j < i)
                 std::swap(polylines[i].points, polylines[j].points);
             ++ j;
         } else

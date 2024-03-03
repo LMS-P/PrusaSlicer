@@ -101,7 +101,7 @@ static inline void layer_height_ranges_copy_configs(t_layer_config_ranges &lr_ds
     }
 }
 
-static inline bool transform3d_lower(const Transform3d &lhs, const Transform3d &rhs) 
+static inline bool transform3d_lower(const Transform3d &lhs, const Transform3d &rhs)
 {
     typedef Transform3d::Scalar T;
     const T *lv = lhs.data();
@@ -115,7 +115,7 @@ static inline bool transform3d_lower(const Transform3d &lhs, const Transform3d &
     return false;
 }
 
-static inline bool transform3d_equal(const Transform3d &lhs, const Transform3d &rhs) 
+static inline bool transform3d_equal(const Transform3d &lhs, const Transform3d &rhs)
 {
     typedef Transform3d::Scalar T;
     const T *lv = lhs.data();
@@ -395,7 +395,7 @@ struct PrintObjectStatus {
         New
     };
 
-    PrintObjectStatus(PrintObject *print_object, Status status = Unknown) : 
+    PrintObjectStatus(PrintObject *print_object, Status status = Unknown) :
         id(print_object->model_object()->id()),
         print_object(print_object),
         trafo(print_object->trafo()),
@@ -406,7 +406,7 @@ struct PrintObjectStatus {
     ObjectID         id;
     // Pointer to the old PrintObject
     PrintObject     *print_object;
-    // Trafo generated with model_object->world_matrix(true) 
+    // Trafo generated with model_object->world_matrix(true)
     Transform3d      trafo;
     Status           status;
 
@@ -425,7 +425,7 @@ public:
     }
 
     struct iterator_range : std::pair<const_iterator, const_iterator>
-    { 
+    {
         using std::pair<const_iterator, const_iterator>::pair;
         iterator_range(const std::pair<const_iterator, const_iterator> in) : std::pair<const_iterator, const_iterator>(in) {}
 
@@ -510,7 +510,7 @@ static PrintObjectRegions::BoundingBox transformed_its_bbox2d(const indexed_tria
 }
 
 static void transformed_its_bboxes_in_z_ranges(
-    const indexed_triangle_set                                    &its, 
+    const indexed_triangle_set                                    &its,
     const Transform3f                                             &m,
     const std::vector<t_layer_height_range>                       &z_ranges,
     std::vector<std::pair<PrintObjectRegions::BoundingBox, bool>> &bboxes,
@@ -694,7 +694,7 @@ bool verify_update_print_object_regions(
                             assert(next_region_id == int(layer_range.volume_regions.size()) ||
                                    layer_range.volume_regions[next_region_id].model_volume != region.model_volume ||
                                    layer_range.volume_regions[next_region_id].parent <= parent_region_id);
-                            if (next_region_id < int(layer_range.volume_regions.size()) && 
+                            if (next_region_id < int(layer_range.volume_regions.size()) &&
                                 layer_range.volume_regions[next_region_id].model_volume == region.model_volume &&
                                 layer_range.volume_regions[next_region_id].parent == parent_region_id) {
                                 // A parent region is already overridden.
@@ -729,7 +729,7 @@ bool verify_update_print_object_regions(
             }
     }
 
-    // Verify and / or update PrintRegions produced by color painting. 
+    // Verify and / or update PrintRegions produced by color painting.
     for (const PrintObjectRegions::LayerRangeRegions &layer_range : print_object_regions.layer_ranges)
         for (const PrintObjectRegions::PaintedRegion &region : layer_range.painted_regions) {
             const PrintObjectRegions::VolumeRegion &parent_region   = layer_range.volume_regions[region.parent];
@@ -781,7 +781,7 @@ void update_volume_bboxes(
     std::vector<PrintObjectRegions::LayerRangeRegions>  &layer_ranges,
     std::vector<ObjectID>                               &cached_volume_ids,
     ModelVolumePtrs                                      model_volumes,
-    const Transform3d                                   &object_trafo, 
+    const Transform3d                                   &object_trafo,
     const float                                          offset)
 {
     // output will be sorted by the order of model_volumes sorted by their ObjectIDs.
@@ -930,7 +930,7 @@ static PrintObjectRegions* generate_print_object_regions(
                             if (parent_volume.is_model_part() || parent_volume.is_modifier())
                                 if (PrintObjectRegions::BoundingBox parent_bbox = find_modifier_volume_extents(layer_range, parent_region_id); parent_bbox.intersects(*bbox)) {
                                     // Only create new region for a modifier, which actually modifies config of it's parent.
-                                    if (PrintRegionConfig config = region_config_from_model_volume(parent_region.region->config(), nullptr, volume, num_extruders); 
+                                    if (PrintRegionConfig config = region_config_from_model_volume(parent_region.region->config(), nullptr, volume, num_extruders);
                                         config != parent_region.region->config()) {
                                         added = true;
                                         layer_range.volume_regions.push_back({ &volume, parent_region_id, get_create_region(std::move(config)), bbox });
@@ -981,6 +981,24 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
 	new_full_config.option("printer_settings_id",          true);
     new_full_config.option("physical_printer_settings_id", true);
     new_full_config.normalize_fdm();
+
+    {
+        const auto& o = model.objects;
+        const auto opt_has_scarf_joint_seam = [](const DynamicConfig& c) {
+            return c.has("seam_slope_type") && c.opt_enum<SeamScarfType>("seam_slope_type") != SeamScarfType::None;
+        };
+        const bool has_scarf_joint_seam = std::any_of(o.begin(), o.end(), [&new_full_config, &opt_has_scarf_joint_seam](ModelObject* obj) {
+            return obj->get_config_value<ConfigOptionEnum<SeamScarfType>>(new_full_config, "seam_slope_type")->value != SeamScarfType::None ||
+                   std::any_of(obj->volumes.begin(), obj->volumes.end(), [&opt_has_scarf_joint_seam](const ModelVolume* v) { return opt_has_scarf_joint_seam(v->config.get());}) ||
+                   std::any_of(obj->layer_config_ranges.begin(), obj->layer_config_ranges.end(), [&opt_has_scarf_joint_seam](const auto& r) { return opt_has_scarf_joint_seam(r.second.get());});
+        });
+
+        if (has_scarf_joint_seam) {
+            new_full_config.set("has_scarf_joint_seam", true);
+        }
+
+        BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ", has_scarf_joint_seam:" << has_scarf_joint_seam;
+    }
 
     // Find modified keys of the various configs. Resolve overrides extruder retract values by filament profiles.
     DynamicPrintConfig   filament_overrides;
@@ -1040,7 +1058,7 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
             num_extruders_changed = true;
         }
     }
-    
+
     ModelObjectStatusDB model_object_status_db;
 
     // 1) Synchronize model objects.
@@ -1181,7 +1199,7 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
         if (solid_or_modifier_differ || model_origin_translation_differ || layer_height_ranges_differ ||
             ! model_object.layer_height_profile.timestamp_matches(model_object_new.layer_height_profile)) {
             // The very first step (the slicing step) is invalidated. One may freely remove all associated PrintObjects.
-            model_object_status.print_object_regions_status = 
+            model_object_status.print_object_regions_status =
                 model_object_status.print_object_regions == nullptr || model_origin_translation_differ || layer_height_ranges_differ ?
                 // Drop print_objects_regions.
                 ModelObjectStatus::PrintObjectRegionsStatus::Invalid :
@@ -1245,7 +1263,7 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
             }
             model_object.input_file = model_object_new.input_file;
             // Only refresh ModelInstances if there is any change.
-            if (model_object.instances.size() != model_object_new.instances.size() || 
+            if (model_object.instances.size() != model_object_new.instances.size() ||
             	! std::equal(model_object.instances.begin(), model_object.instances.end(), model_object_new.instances.begin(), [](auto l, auto r){ return l->id() == r->id(); })) {
             	// G-code generator accesses model_object.instances to generate sequential print ordering matching the Plater object list.
             	update_apply_status(this->invalidate_step(psGCodeExport));
@@ -1255,8 +1273,8 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
 	                model_object.instances.emplace_back(new ModelInstance(*model_instance));
 	                model_object.instances.back()->set_model_object(&model_object);
 	            }
-	        } else if (! std::equal(model_object.instances.begin(), model_object.instances.end(), model_object_new.instances.begin(), 
-	        		[](auto l, auto r){ return l->print_volume_state == r->print_volume_state && l->printable == r->printable && 
+	        } else if (! std::equal(model_object.instances.begin(), model_object.instances.end(), model_object_new.instances.begin(),
+	        		[](auto l, auto r){ return l->print_volume_state == r->print_volume_state && l->printable == r->printable &&
 	        						           l->get_transformation().get_matrix().isApprox(r->get_transformation().get_matrix()); })) {
 	        	// If some of the instances changed, the bounding box of the updated ModelObject is likely no more valid.
 	        	// This is safe as the ModelObject's bounding box is only accessed from this function, which is called from the main thread only.
@@ -1486,7 +1504,7 @@ void Print::cleanup()
         auto this_objects = SpanOfConstPtrs<PrintObject>(const_cast<const PrintObject* const* const>(&(*it_begin)), it - it_begin);
         if (! Print::is_shared_print_object_step_valid_unguarded(this_objects, posSupportSpotsSearch))
             shared_regions->generated_support_points.reset();
-    }    
+    }
 }
 
 bool Print::is_shared_print_object_step_valid_unguarded(SpanOfConstPtrs<PrintObject> print_objects, PrintObjectStep print_object_step)

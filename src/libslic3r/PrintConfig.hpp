@@ -119,6 +119,12 @@ enum SeamPosition {
     spRandom, spNearest, spAligned, spRear
 };
 
+enum class SeamScarfType {
+    None,
+    External,
+    All,
+};
+
 enum SLAMaterial {
     slamTough,
     slamFlex,
@@ -181,6 +187,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialPattern)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialStyle)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialInterfacePattern)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamPosition)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamScarfType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLADisplayOrientation)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAPillarConnectionMode)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLASupportTreeType)
@@ -670,6 +677,14 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                 only_one_perimeter_top))
     ((ConfigOptionFloatOrPercent,       min_width_top_surface))
     ((ConfigOptionEnum<InfillPattern>,  solid_fill_pattern))
+
+    // Orca: seam slopes
+    ((ConfigOptionEnum<SeamScarfType>,  seam_slope_type))
+    ((ConfigOptionFloatOrPercent,       seam_slope_start_height))
+    ((ConfigOptionBool,                 seam_slope_entire_loop))
+    ((ConfigOptionFloat,                seam_slope_min_length))
+    ((ConfigOptionInt,                  seam_slope_steps))
+    ((ConfigOptionBool,                 seam_slope_inner_walls))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(
@@ -813,6 +828,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                small_area_infill_flow_compensation_compensation_factor_7))
     ((ConfigOptionFloat,                small_area_infill_flow_compensation_compensation_factor_8))
     ((ConfigOptionFloat,                small_area_infill_flow_compensation_compensation_factor_9))
+
+    ((ConfigOptionBool,                 has_scarf_joint_seam))
 )
 
 static inline std::string get_extrusion_axis(const GCodeConfig &cfg)
@@ -823,7 +840,7 @@ static inline std::string get_extrusion_axis(const GCodeConfig &cfg)
 }
 
 PRINT_CONFIG_CLASS_DERIVED_DEFINE(
-    PrintConfig, 
+    PrintConfig,
     (MachineEnvelopeConfig, GCodeConfig),
 
     ((ConfigOptionBool,               avoid_crossing_curled_overhangs))

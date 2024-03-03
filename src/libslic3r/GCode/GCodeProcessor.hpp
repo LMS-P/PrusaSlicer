@@ -204,7 +204,7 @@ namespace Slic3r {
         };
 
         static const std::string& reserved_tag(ETags tag) { return Reserved_Tags[static_cast<unsigned char>(tag)]; }
-        // checks the given gcode for reserved tags and returns true when finding the 1st (which is returned into found_tag) 
+        // checks the given gcode for reserved tags and returns true when finding the 1st (which is returned into found_tag)
         static bool contains_reserved_tag(const std::string& gcode, std::string& found_tag);
         // checks the given gcode for reserved tags and returns true when finding any
         // (the first max_count found tags are returned into found_tag)
@@ -604,8 +604,9 @@ namespace Slic3r {
         SeamsDetector m_seams_detector;
         OptionsZCorrector m_options_z_corrector;
         size_t m_last_default_color_id;
-        bool m_spiral_vase_active;
+        bool m_detect_layer_based_on_tag {false};
         float m_kissslicer_toolchange_time_correction;
+        int m_seams_count;
 #if ENABLE_GCODE_VIEWER_STATISTICS
         std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time;
 #endif // ENABLE_GCODE_VIEWER_STATISTICS
@@ -685,6 +686,9 @@ namespace Slic3r {
         std::vector<std::pair<GCodeExtrusionRole, float>> get_roles_time(PrintEstimatedStatistics::ETimeMode mode) const;
         std::vector<float> get_layers_time(PrintEstimatedStatistics::ETimeMode mode) const;
 
+        // Orca: if true, only change new layer if ETags::Layer_Change occurs
+        // otherwise when we got a lift of z during extrusion, a new layer will be added
+        void detect_layer_based_on_tag(bool enabled) { m_detect_layer_based_on_tag = enabled; }
     private:
         void apply_config(const DynamicPrintConfig& config);
         void apply_config_simplify3d(const std::string& filename);
@@ -748,7 +752,7 @@ namespace Slic3r {
 
         // Return to Saved Position
         void process_G61(const GCodeReader::GCodeLine& line);
- 
+
         // Set to Absolute Positioning
         void process_G90(const GCodeReader::GCodeLine& line);
 
@@ -859,5 +863,3 @@ namespace Slic3r {
 } /* namespace Slic3r */
 
 #endif /* slic3r_GCodeProcessor_hpp_ */
-
-

@@ -42,7 +42,7 @@ public:
 			pl.points.emplace_back(Point::new_scale(pt(0), pt(1)));
 		return pl;
     }
-    
+
     void append(const Point &point) { this->points.push_back(point); }
     void append(const Points &src) { this->append(src.begin(), src.end()); }
     void append(const Points::const_iterator &begin, const Points::const_iterator &end) { this->points.insert(this->points.end(), begin, end); }
@@ -55,12 +55,12 @@ public:
             src.clear();
         }
     }
-    void append(const Polyline &src) 
-    { 
+    void append(const Polyline &src)
+    {
         points.insert(points.end(), src.points.begin(), src.points.end());
     }
 
-    void append(Polyline &&src) 
+    void append(Polyline &&src)
     {
         if (this->points.empty()) {
             this->points = std::move(src.points);
@@ -69,7 +69,7 @@ public:
             src.points.clear();
         }
     }
-  
+
     Point& operator[](Points::size_type idx) { return this->points[idx]; }
     const Point& operator[](Points::size_type idx) const { return this->points[idx]; }
 
@@ -86,6 +86,7 @@ public:
     void simplify(double tolerance);
 //    template <class T> void simplify_by_visibility(const T &area);
     void split_at(const Point &point, Polyline* p1, Polyline* p2) const;
+    bool split_at_length(const double length, Polyline* p1, Polyline* p2) const;
     bool is_straight() const;
     bool is_closed() const { return this->points.front() == this->points.back(); }
 
@@ -110,7 +111,7 @@ inline double total_length(const Polylines &polylines) {
     return total;
 }
 
-inline Lines to_lines(const Polyline &poly) 
+inline Lines to_lines(const Polyline &poly)
 {
     Lines lines;
     if (poly.points.size() >= 2) {
@@ -121,7 +122,7 @@ inline Lines to_lines(const Polyline &poly)
     return lines;
 }
 
-inline Lines to_lines(const Polylines &polys) 
+inline Lines to_lines(const Polylines &polys)
 {
     size_t n_lines = 0;
     for (size_t i = 0; i < polys.size(); ++ i)
@@ -155,12 +156,12 @@ inline Polylines to_polylines(std::vector<Points> &&paths)
     return out;
 }
 
-inline void polylines_append(Polylines &dst, const Polylines &src) 
-{ 
+inline void polylines_append(Polylines &dst, const Polylines &src)
+{
     dst.insert(dst.end(), src.begin(), src.end());
 }
 
-inline void polylines_append(Polylines &dst, Polylines &&src) 
+inline void polylines_append(Polylines &dst, Polylines &&src)
 {
     if (dst.empty()) {
         dst = std::move(src);

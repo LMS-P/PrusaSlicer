@@ -26,12 +26,13 @@ class GCodeWriter {
 public:
     GCodeConfig config;
     bool multiple_extruders;
-    
-    GCodeWriter() : 
+
+    GCodeWriter() :
         multiple_extruders(false), m_extrusion_axis("E"), m_extruder(nullptr),
         m_single_extruder_multi_material(false),
         m_last_acceleration(0), m_max_acceleration(0), m_max_accel_to_decel(0), m_last_jerk(0),
-        m_last_bed_temperature(0), m_last_bed_temperature_reached(true)
+        m_last_bed_temperature(0), m_last_bed_temperature_reached(true),
+        m_lifted(0)
         {}
     Extruder*            extruder()             { return m_extruder; }
     const Extruder*      extruder()     const   { return m_extruder; }
@@ -42,11 +43,11 @@ public:
     // Extruders are expected to be sorted in an increasing order.
     void                 set_extruders(std::vector<unsigned int> extruder_ids);
     const std::vector<Extruder>& extruders() const { return m_extruders; }
-    std::vector<unsigned int> extruder_ids() const { 
-        std::vector<unsigned int> out; 
-        out.reserve(m_extruders.size()); 
-        for (const Extruder &e : m_extruders) 
-            out.push_back(e.id()); 
+    std::vector<unsigned int> extruder_ids() const {
+        std::vector<unsigned int> out;
+        out.reserve(m_extruders.size());
+        for (const Extruder &e : m_extruders)
+            out.push_back(e.id());
         return out;
     }
     std::string preamble();
@@ -59,7 +60,7 @@ public:
     std::string reset_e(bool force = false);
     std::string update_progress(unsigned int num, unsigned int tot, bool allow_100 = false) const;
     // return false if this extruder was already selected
-    bool        need_toolchange(unsigned int extruder_id) const 
+    bool        need_toolchange(unsigned int extruder_id) const
         { return m_extruder == nullptr || m_extruder->id() != extruder_id; }
     std::string set_extruder(unsigned int extruder_id)
         { return this->need_toolchange(extruder_id) ? this->toolchange(extruder_id) : ""; }
@@ -88,7 +89,7 @@ public:
     std::string travel_to_z(double z, const std::string_view comment = {});
     std::string extrude_to_xy(const Vec2d &point, double dE, const std::string_view comment = {});
     std::string extrude_to_xy_G2G3IJ(const Vec2d &point, const Vec2d &ij, const bool ccw, double dE, const std::string_view comment);
-//    std::string extrude_to_xyz(const Vec3d &point, double dE, const std::string_view comment = {});
+    std::string extrude_to_xyz(const Vec3d &point, double dE, const std::string_view comment = {});
     std::string retract(bool before_wipe = false);
     std::string retract_for_toolchange(bool before_wipe = false);
     std::string unretract();
@@ -135,6 +136,7 @@ private:
 
     unsigned int    m_last_bed_temperature;
     bool            m_last_bed_temperature_reached;
+    double          m_lifted;
     Vec3d           m_pos = Vec3d::Zero();
 
     enum class Acceleration {

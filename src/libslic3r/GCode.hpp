@@ -46,6 +46,7 @@
 #include <memory>
 #include <map>
 #include <string>
+#include <cfloat>
 
 //#include "GCode/PressureEqualizer.hpp"
 #include "GCode/SmallAreaInfillFlowCompensator.hpp"
@@ -62,11 +63,11 @@ struct PrintInstance;
 class OozePrevention {
 public:
     bool enable;
-    
+
     OozePrevention() : enable(false) {}
     std::string pre_toolchange(GCodeGenerator &gcodegen);
     std::string post_toolchange(GCodeGenerator &gcodegen);
-    
+
 private:
     int _get_temp(const GCodeGenerator &gcodegen) const;
 };
@@ -198,7 +199,7 @@ private:
 
         bool is_open() const { return f; }
         bool is_error() const;
-        
+
         void flush();
         void close();
 
@@ -206,12 +207,12 @@ private:
         void write(const std::string& what) { this->write(what.c_str()); }
         void write(const char* what);
 
-        // Write a string into a file. 
+        // Write a string into a file.
         // Add a newline, if the string does not end with a newline already.
         // Used to export a custom G-code section processed by the PlaceholderParser.
         void writeln(const std::string& what);
 
-        // Formats and write into a file the given data. 
+        // Formats and write into a file the given data.
         void write_format(const char* format, ...);
 
     private:
@@ -301,26 +302,27 @@ private:
     // This function will be called for each printing extruder, possibly twice: First for wiping extrusions, second for normal extrusions.
     void process_layer_single_object(
         // output
-        std::string              &gcode, 
+        std::string              &gcode,
         // Index of the extruder currently active.
         const unsigned int        extruder_id,
         // What object and instance is going to be printed.
         const InstanceToPrint    &print_instance,
         // and the object & support layer of the above.
-        const ObjectLayerToPrint &layer_to_print, 
+        const ObjectLayerToPrint &layer_to_print,
         // Container for extruder overrides (when wiping into object or infill).
         const LayerTools         &layer_tools,
         // Optional smooth path interpolating extrusion polylines.
         const GCode::SmoothPathCache &smooth_path_cache,
         // Is any extrusion possibly marked as wiping extrusion?
-        const bool                is_anything_overridden, 
+        const bool                is_anything_overridden,
         // Round 1 (wiping into object or infill) or round 2 (normal extrusions).
         const bool                print_wipe_extrusions);
 
     std::string     extrude_support(const ExtrusionEntityReferences &support_fills, const GCode::SmoothPathCache &smooth_path_cache);
     std::string generate_travel_gcode(
         const Points3& travel,
-        const std::string& comment
+        const std::string& comment,
+        double z = DBL_MAX
     );
     Polyline generate_travel_xy_path(
         const Point& start,
@@ -332,7 +334,8 @@ private:
         const Point &start_point,
         const Point &end_point,
         ExtrusionRole role,
-        const std::string &comment
+        const std::string &comment,
+        double z = DBL_MAX
     );
 
     std::string travel_to_first_position(const Vec3crd& point, const double from_z);
@@ -457,11 +460,19 @@ private:
     // Back-pointer to Print (const).
     const Print*                        m_print;
 
+    // Orca
+    coordf_t                            m_nominal_z;
+
     std::string                         _extrude(
         const ExtrusionAttributes &attribs, const Geometry::ArcWelder::Path &path, const std::string_view description, double speed = -1);
     void                                print_machine_envelope(GCodeOutputStream &file, const Print &print);
     void                                _print_first_layer_bed_temperature(GCodeOutputStream &file, const Print &print, const std::string &gcode, unsigned int first_printing_extruder_id, bool wait);
     void                                _print_first_layer_extruder_temperatures(GCodeOutputStream &file, const Print &print, const std::string &gcode, unsigned int first_printing_extruder_id, bool wait);
+    int layer_id() const {
+        if (m_layer == nullptr)
+            return -1;
+        return m_layer->id();
+    }
     // On the first printing layer. This flag triggers first layer speeds.
     bool                                on_first_layer() const { return m_layer != nullptr && m_layer->id() == 0; }
     // To control print speed of 1st object layer over raft interface.
