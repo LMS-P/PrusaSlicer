@@ -691,13 +691,13 @@ void Layer::make_perimeters()
     		                && config.infill_overlap              == other_config.infill_overlap
                             && config.fuzzy_skin                  == other_config.fuzzy_skin
                             && config.fuzzy_skin_thickness        == other_config.fuzzy_skin_thickness
-                            && config.fuzzy_skin_point_dist       == other_config.fuzzy_skin_point_dist)
-                            && config.seam_slope_type         == other_config.seam_slope_type
-                            && config.seam_slope_start_height == other_config.seam_slope_start_height
-                            && config.seam_slope_entire_loop  == other_config.seam_slope_entire_loop
-                            && config.seam_slope_min_length   == other_config.seam_slope_min_length
-                            && config.seam_slope_steps        == other_config.seam_slope_steps
-                            && config.seam_slope_inner_walls  == other_config.seam_slope_inner_walls)
+                            && config.fuzzy_skin_point_dist       == other_config.fuzzy_skin_point_dist
+                            && config.seam_slope_type             == other_config.seam_slope_type
+                            && config.seam_slope_start_height     == other_config.seam_slope_start_height
+                            && config.seam_slope_entire_loop      == other_config.seam_slope_entire_loop
+                            && config.seam_slope_min_length       == other_config.seam_slope_min_length
+                            && config.seam_slope_steps            == other_config.seam_slope_steps
+                            && config.seam_slope_inner_walls      == other_config.seam_slope_inner_walls)
     		            {
                             layer_region_reset_perimeters(*other_layerm);
     		                layer_region_ids.push_back(it - m_regions.begin());

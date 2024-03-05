@@ -2896,13 +2896,11 @@ void PrintConfigDef::init_fff_params()
     def = this->add("seam_slope_type", coEnum);
     def->label = L("Scarf joint seam (beta)");
     def->tooltip = L("Use scarf joint to minimize seam visibility and increase seam strength.");
-    def->enum_keys_map = &ConfigOptionEnum<SeamScarfType>::get_enum_values();
-    def->enum_values.push_back("none");
-    def->enum_values.push_back("external");
-    def->enum_values.push_back("all");
-    def->enum_labels.push_back(L("None"));
-    def->enum_labels.push_back(L("Contour"));
-    def->enum_labels.push_back(L("Contour and hole"));
+    def->set_enum<SeamPosition>({
+        { "none",       L("None") },
+        { "external",   L("Contour") },
+        { "all",        L("Contour and hole") }
+    });
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionEnum<SeamScarfType>(SeamScarfType::None));
 

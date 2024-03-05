@@ -2787,6 +2787,9 @@ std::string GCodeGenerator::change_layer(
         // Increment a progress bar indicator.
         gcode += m_writer.update_progress(++ m_layer_index, m_layer_count);
 
+    // Orca
+    coordf_t z = print_z + m_config.z_offset.value;  // in unscaled coordinates
+
     if (!EXTRUDER_CONFIG(travel_ramping_lift) && EXTRUDER_CONFIG(retract_layer_change)) {
         gcode += this->retract_and_wipe();
     } else if (EXTRUDER_CONFIG(travel_ramping_lift) && !vase_mode){
@@ -2811,6 +2814,8 @@ std::string GCodeGenerator::change_layer(
 
     // forget last wiping path as wiping after raising Z is pointless
     m_wipe.reset_path();
+
+    m_nominal_z = z;
 
     return gcode;
 }
@@ -2840,10 +2845,14 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
     }
 
     const auto seam_scarf_type = m_config.seam_slope_type.value;
-    const bool enable_seam_slope = ((seam_scarf_type == SeamScarfType::External && !is_hole) || seam_scarf_type == SeamScarfType::All) &&
+    const bool enable_seam_slope = true && // ((seam_scarf_type == SeamScarfType::External && !is_hole) || seam_scarf_type == SeamScarfType::All) &&
         !m_config.spiral_vase &&
         (loop_src.role() == ExtrusionRole::ExternalPerimeter || (loop_src.role() == ExtrusionRole::Perimeter && m_config.seam_slope_inner_walls)) &&
         layer_id() > 0;
+
+    BOOST_LOG_TRIVIAL(warning) << "enable_seam_slope is " << enable_seam_slope;
+    BOOST_LOG_TRIVIAL(warning) << "seam_scarf_type is " << (seam_scarf_type == SeamScarfType::External) << "; is_hole=" << is_hole << " spiral_vase=" << !!m_config.spiral_vase;
+    BOOST_LOG_TRIVIAL(warning) << "loop_src role is " << gcode_extrusion_role_to_string(extrusion_role_to_gcode_extrusion_role(loop_src.role())) << " layer_id=" << layer_id();
 
     // Clip the path to avoid the extruder to get exactly on the first point of the loop;
     // if polyline was shorter than the clipping distance we'd get a null polyline, so
@@ -2851,22 +2860,26 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
     const double seam_gap = scaled<double>(EXTRUDER_CONFIG(nozzle_diameter)) * LOOP_CLIPPING_LENGTH_OVER_NOZZLE_DIAMETER;
     const double clip_length = m_enable_loop_clipping && !enable_seam_slope ? seam_gap : scaled<double>(min_gcode_segment_length);
 
+    BOOST_LOG_TRIVIAL(warning) << "seam_gap is " << seam_gap << " and clip length is " << clip_length;
     // get paths
     ExtrusionPaths paths;
     loop_src.clip_end(clip_length, &paths);
     if (paths.empty()) return "";
 
+    BOOST_LOG_TRIVIAL(warning) << "paths role is " << gcode_extrusion_role_to_string(extrusion_role_to_gcode_extrusion_role(paths.front().role()));
     double small_peri_speed = -1;
     if (speed == -1 && loop_src.length() <= SMALL_PERIMETER_LENGTH) {
         if(m_config.small_perimeter_speed == 0)
             small_peri_speed = m_config.external_perimeter_speed * 0.5;
         else
-            small_peri_speed = m_config.small_perimeter_speed.get_abs_value(m_config.external_perimeter_speed);
+            small_peri_speed = m_config.small_perimeter_speed.get_abs_value(m_config.perimeter_speed);
+
     }
 
     const auto speed_for_path = [&speed, &small_peri_speed](const ExtrusionPath& path) {
         // don't apply small perimeter setting for overhangs/bridges/non-perimeters
         const bool is_small_peri = path.role().is_perimeter() && path.length() <= SMALL_PERIMETER_LENGTH && small_peri_speed > 0;
+        BOOST_LOG_TRIVIAL(warning) << "is_small_peri=" << is_small_peri << ";speed=" << speed << ";small_peri_speed=" <<small_peri_speed;
         return is_small_peri ? small_peri_speed : speed;
     };
 
@@ -2874,8 +2887,11 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
     std::string gcode;
 
     if (!enable_seam_slope) {
-        for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path)
+        for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path) {
+            BOOST_LOG_TRIVIAL(warning) << "speed_for_path is " << speed_for_path(*path);
+
             gcode += this->_extrude(path->attributes(), smooth_path_cache.resolve_or_fit(*path, is_hole, m_scaled_resolution), description, speed_for_path(*path));
+        }
     } else {
         // Create seam slope
         double start_slope_ratio;
@@ -2892,6 +2908,8 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
             loop_length += unscaled(path.length());
         }
 
+        BOOST_LOG_TRIVIAL(warning) << "loop_length is " << loop_length << " and start_slope_ratio is " << start_slope_ratio;
+
         const bool   slope_entire_loop        = m_config.seam_slope_entire_loop;
         const double slope_min_length         = slope_entire_loop ? loop_length : std::min(m_config.seam_slope_min_length.value, loop_length);
         const int    slope_steps              = m_config.seam_slope_steps;
@@ -2900,6 +2918,7 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
         // Calculate the sloped loop
         ExtrusionPaths paths;
         loop_src.clip_end(0, &paths);
+        BOOST_LOG_TRIVIAL(warning) << "paths role still is " << gcode_extrusion_role_to_string(extrusion_role_to_gcode_extrusion_role(paths.front().role()));
 
         ExtrusionLoopSloped new_loop(
             paths,
@@ -3214,7 +3233,14 @@ std::string GCodeGenerator::_extrude(
     std::string gcode;
     const std::string_view description_bridge = path_attr.role.is_bridge() ? " (bridge)"sv : ""sv;
 
-    const ExtrusionPathSloped* sloped = dynamic_cast<const ExtrusionPathSloped*>(&path);
+    Points points;
+    const ExtrusionPath extrusion_path(path_attr);
+
+    points.reserve(path.size());
+    std::transform(path.begin(), path.end(), std::back_inserter(points), [](const Geometry::ArcWelder::Segment& segment) { return segment.point; });
+    extrusion_path.collect_points(points);
+
+    const ExtrusionPathSloped* sloped = dynamic_cast<const ExtrusionPathSloped*>(&extrusion_path);
 
     const auto get_sloped_z = [&sloped, this](double z_ratio) {
         const auto height = sloped->height();
@@ -3346,7 +3372,7 @@ std::string GCodeGenerator::_extrude(
         } else if (path_attr.role == ExtrusionRole::GapFill) {
             speed = m_config.get_abs_value("gap_fill_speed");
         } else {
-            throw Slic3r::InvalidArgument("Invalid speed");
+            throw Slic3r::InvalidArgument(gcode_extrusion_role_to_string(extrusion_role_to_gcode_extrusion_role(path_attr.role)));
         }
     }
     if (m_volumetric_speed != 0. && speed == 0)
@@ -3489,6 +3515,7 @@ std::string GCodeGenerator::_extrude(
                         }
                     }
                     if (sloped == nullptr) {
+                        tempComment += " ... normal extrusions ...";
                         // Normal extrusion
                         gcode += m_writer.extrude_to_xy(
                             p,
@@ -3496,6 +3523,7 @@ std::string GCodeGenerator::_extrude(
                             tempComment
                         );
                     } else {
+                        tempComment += " ... sloped extrusions ...";
                         // Sloped extrusion
                         const auto [z_ratio, e_ratio] = sloped->interpolate(path_length / total_length);
                         Vec2d dest2d = p;
@@ -3541,7 +3569,7 @@ std::string GCodeGenerator::_extrude(
 std::string GCodeGenerator::generate_travel_gcode(
     const Points3& travel,
     const std::string& comment,
-    double z = DBL_MAX
+    double z/* = DBL_MAX*/
 ) {
     std::string gcode;
 
@@ -3572,7 +3600,7 @@ std::string GCodeGenerator::generate_travel_gcode(
             // No extra movements emitted by avoid_crossing_perimeters, simply move to the end point with z change
             const auto& dest2d = this->point_to_gcode(travel.back());
             Vec3d dest3d(dest2d(0), dest2d(1), z == DBL_MAX ? m_nominal_z : z);
-            gcode += m_writer.travel_to_xyz(travel.front(), dest3d, comment);
+            gcode += m_writer.travel_to_xyz(this->point_to_gcode(travel.front()), dest3d, comment);
         } else {
             // Extra movements emitted by avoid_crossing_perimeters, lift the z to normal height at the beginning, then apply the z
             // ratio at the last point
@@ -3580,21 +3608,21 @@ std::string GCodeGenerator::generate_travel_gcode(
             for (size_t i = 1; i < travel.size(); ++i) {
                 if (i == 1) {
                     // Lift to normal z at beginning
-                    Vec2d dest2d = this->point_to_gcode(travel[i]);
+                    Vec2d dest2d = this->point_to_gcode(travel[i].head<2>());
                     Vec3d dest3d(dest2d(0), dest2d(1), m_nominal_z);
                     gcode += m_writer.travel_to_xyz(previous_point, dest3d, comment);
                 } else if (z != DBL_MAX && i == travel.size() - 1) {
                     // Apply z_ratio for the very last point
-                    Vec2d dest2d = this->point_to_gcode(travel[i]);
+                    Vec2d dest2d = this->point_to_gcode(travel[i].head<2>());
                     Vec3d dest3d(dest2d(0), dest2d(1), z);
                     gcode += m_writer.travel_to_xyz(previous_point, dest3d, comment);
                 } else {
                     // For all points in between, no z change
-                    gcode += m_writer.travel_to_xy(travel[i], comment);
+                    gcode += m_writer.travel_to_xy(this->point_to_gcode(travel[i].head<2>()), comment);
                 }
 
                 this->last_position = travel[i].head<2>();
-                previous_point = this->point_to_gcode(travel[i]);
+                previous_point = Vec3d { this->point_to_gcode(travel[i]) };
             }
         }
     }

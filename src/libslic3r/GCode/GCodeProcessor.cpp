@@ -2869,7 +2869,7 @@ void GCodeProcessor::process_G1(const std::array<std::optional<double>, 4>& axes
     if (m_seams_detector.is_active()) {
         // check for seam starting vertex
         if (type == EMoveType::Extrude && m_extrusion_role == GCodeExtrusionRole::ExternalPerimeter) {
-            const Vec3f new_pos = m_result.moves.back().position - m_extruder_offsets[m_extruder_id] - plate_offset;
+            const Vec3f new_pos = m_result.moves.back().position - m_extruder_offsets[m_extruder_id];
             if (!m_seams_detector.has_first_vertex()) {
                 m_seams_detector.set_first_vertex(new_pos);
             } else if (m_detect_layer_based_on_tag) {

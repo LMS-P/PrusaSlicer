@@ -70,6 +70,20 @@ public:
         }
     }
 
+    void append_before(const Point& point) {
+        //BBS: don't need to append same point
+        if (!this->empty() && this->first_point() == point)
+            return;
+        if (this->size() == 1) {
+            MultiPoint::append(point);
+            MultiPoint::reverse();
+        } else {
+            this->reverse();
+            this->append(point);
+            this->reverse();
+        }
+    }
+
     Point& operator[](Points::size_type idx) { return this->points[idx]; }
     const Point& operator[](Points::size_type idx) const { return this->points[idx]; }
 
@@ -86,6 +100,7 @@ public:
     void simplify(double tolerance);
 //    template <class T> void simplify_by_visibility(const T &area);
     void split_at(const Point &point, Polyline* p1, Polyline* p2) const;
+    bool split_at_index(const size_t index, Polyline* p1, Polyline* p2) const;
     bool split_at_length(const double length, Polyline* p1, Polyline* p2) const;
     bool is_straight() const;
     bool is_closed() const { return this->points.front() == this->points.back(); }

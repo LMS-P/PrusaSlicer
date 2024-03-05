@@ -146,6 +146,8 @@ public:
     ExtrusionPath(ExtrusionPath &&rhs) : polyline(std::move(rhs.polyline)), m_attributes(rhs.m_attributes) {}
     ExtrusionPath(const Polyline &polyline, const ExtrusionAttributes &attribs) : polyline(polyline), m_attributes(attribs) {}
     ExtrusionPath(Polyline &&polyline, const ExtrusionAttributes &attribs) : polyline(std::move(polyline)), m_attributes(attribs) {}
+    ExtrusionPath(const Polyline &polyline, const ExtrusionPath &rhs) : polyline(polyline), m_attributes(rhs.m_attributes) {}
+    ExtrusionPath(Polyline &&polyline, const ExtrusionPath &rhs) : polyline(std::move(polyline)), m_attributes(rhs.m_attributes) {}
 
     ExtrusionPath& operator=(const ExtrusionPath &rhs) { this->polyline = rhs.polyline; m_attributes = rhs.m_attributes; return *this; }
     ExtrusionPath& operator=(ExtrusionPath &&rhs) { this->polyline = std::move(rhs.polyline); m_attributes = rhs.m_attributes; return *this; }

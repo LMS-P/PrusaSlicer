@@ -181,7 +181,7 @@ private:
 	friend class UndoRedo::StackImpl;
 	// Create an object for deserialization, don't allocate IDs for ModelMaterial and its config.
 	ModelMaterial() : ObjectBase(-1), config(-1) { assert(this->id().invalid()); assert(this->config.id().invalid()); }
-	template<class Archive> void serialize(Archive &ar) { 
+	template<class Archive> void serialize(Archive &ar) {
 		assert(this->id().invalid()); assert(this->config.id().invalid());
 		Internal::StaticSerializationWrapper<ModelConfigObject> config_wrapper(config);
 		ar(attributes, config_wrapper);
@@ -379,6 +379,13 @@ public:
     Model*                  get_model() { return m_model; }
     const Model*            get_model() const { return m_model; }
 
+    template<typename T> const T* get_config_value(const DynamicPrintConfig& global_config, const std::string& config_option) {
+        if (config.has(config_option))
+            return static_cast<const T*>(config.option(config_option));
+        else
+            return global_config.option<T>(config_option);
+    }
+
     ModelVolume*            add_volume(const TriangleMesh &mesh);
     ModelVolume*            add_volume(TriangleMesh &&mesh, ModelVolumeType type = ModelVolumeType::MODEL_PART);
     ModelVolume*            add_volume(const ModelVolume &volume, ModelVolumeType type = ModelVolumeType::INVALID);
@@ -397,7 +404,7 @@ public:
     bool                    is_text() const;
     // This object may have a varying layer height by painting or by a table.
     // Even if true is returned, the layer height profile may be "flat" with no difference to default layering.
-    bool                    has_custom_layering() const 
+    bool                    has_custom_layering() const
         { return ! this->layer_config_ranges.empty() || ! this->layer_height_profile.empty(); }
 
     ModelInstance*          add_instance();
@@ -416,7 +423,7 @@ public:
     double                  min_z() const;
     double                  max_z() const;
 
-    void invalidate_bounding_box() { 
+    void invalidate_bounding_box() {
         m_bounding_box_approx_valid     = false;
         m_bounding_box_exact_valid      = false;
         m_min_max_z_valid               = false;
@@ -511,14 +518,14 @@ private:
     friend class Model;
     // This constructor assigns new ID to this ModelObject and its config.
     explicit ModelObject(Model* model) : m_model(model), origin_translation(Vec3d::Zero())
-    { 
+    {
         assert(this->id().valid());
         assert(this->config.id().valid());
         assert(this->layer_height_profile.id().valid());
     }
     explicit ModelObject(int) : ObjectBase(-1), config(-1), layer_height_profile(-1), origin_translation(Vec3d::Zero())
-    { 
-        assert(this->id().invalid()); 
+    {
+        assert(this->id().invalid());
         assert(this->config.id().invalid());
         assert(this->layer_height_profile.id().invalid());
     }
@@ -527,25 +534,25 @@ private:
 
     // To be able to return an object from own copy / clone methods. Hopefully the compiler will do the "Copy elision"
     // (Omits copy and move(since C++11) constructors, resulting in zero - copy pass - by - value semantics).
-    ModelObject(const ModelObject &rhs) : ObjectBase(-1), config(-1), layer_height_profile(-1), m_model(rhs.m_model) { 
-    	assert(this->id().invalid()); 
-        assert(this->config.id().invalid()); 
+    ModelObject(const ModelObject &rhs) : ObjectBase(-1), config(-1), layer_height_profile(-1), m_model(rhs.m_model) {
+    	assert(this->id().invalid());
+        assert(this->config.id().invalid());
         assert(this->layer_height_profile.id().invalid());
         assert(rhs.id() != rhs.config.id());
         assert(rhs.id() != rhs.layer_height_profile.id());
     	this->assign_copy(rhs);
-    	assert(this->id().valid()); 
-        assert(this->config.id().valid()); 
-        assert(this->layer_height_profile.id().valid()); 
+    	assert(this->id().valid());
+        assert(this->config.id().valid());
+        assert(this->layer_height_profile.id().valid());
         assert(this->id() != this->config.id());
         assert(this->id() != this->layer_height_profile.id());
-    	assert(this->id() == rhs.id()); 
+    	assert(this->id() == rhs.id());
         assert(this->config.id() == rhs.config.id());
         assert(this->layer_height_profile.id() == rhs.layer_height_profile.id());
     }
-    explicit ModelObject(ModelObject &&rhs) : ObjectBase(-1), config(-1), layer_height_profile(-1) { 
-    	assert(this->id().invalid()); 
-        assert(this->config.id().invalid()); 
+    explicit ModelObject(ModelObject &&rhs) : ObjectBase(-1), config(-1), layer_height_profile(-1) {
+    	assert(this->id().invalid());
+        assert(this->config.id().invalid());
         assert(this->layer_height_profile.id().invalid());
         assert(rhs.id() != rhs.config.id());
         assert(rhs.id() != rhs.layer_height_profile.id());
@@ -560,22 +567,9 @@ private:
         assert(this->layer_height_profile.id() == rhs.layer_height_profile.id());
     }
     ModelObject& operator=(const ModelObject &rhs) {
-    	this->assign_copy(rhs); 
+    	this->assign_copy(rhs);
     	m_model = rhs.m_model;
-    	assert(this->id().valid()); 
-        assert(this->config.id().valid()); 
-        assert(this->layer_height_profile.id().valid());
-        assert(this->id() != this->config.id());
-        assert(this->id() != this->layer_height_profile.id());
-    	assert(this->id() == rhs.id()); 
-        assert(this->config.id() == rhs.config.id());
-        assert(this->layer_height_profile.id() == rhs.layer_height_profile.id());
-    	return *this;
-    }
-    ModelObject& operator=(ModelObject &&rhs) {
-    	this->assign_copy(std::move(rhs)); 
-    	m_model = rhs.m_model;
-    	assert(this->id().valid()); 
+    	assert(this->id().valid());
         assert(this->config.id().valid());
         assert(this->layer_height_profile.id().valid());
         assert(this->id() != this->config.id());
@@ -585,8 +579,21 @@ private:
         assert(this->layer_height_profile.id() == rhs.layer_height_profile.id());
     	return *this;
     }
-	void set_new_unique_id() { 
-        ObjectBase::set_new_unique_id(); 
+    ModelObject& operator=(ModelObject &&rhs) {
+    	this->assign_copy(std::move(rhs));
+    	m_model = rhs.m_model;
+    	assert(this->id().valid());
+        assert(this->config.id().valid());
+        assert(this->layer_height_profile.id().valid());
+        assert(this->id() != this->config.id());
+        assert(this->id() != this->layer_height_profile.id());
+    	assert(this->id() == rhs.id());
+        assert(this->config.id() == rhs.config.id());
+        assert(this->layer_height_profile.id() == rhs.layer_height_profile.id());
+    	return *this;
+    }
+	void set_new_unique_id() {
+        ObjectBase::set_new_unique_id();
         this->config.set_new_unique_id();
         this->layer_height_profile.set_new_unique_id();
     }
@@ -629,9 +636,9 @@ private:
 	friend class cereal::access;
 	friend class UndoRedo::StackImpl;
 	// Used for deserialization -> Don't allocate any IDs for the ModelObject or its config.
-	ModelObject() : 
+	ModelObject() :
         ObjectBase(-1), config(-1), layer_height_profile(-1) {
-		assert(this->id().invalid()); 
+		assert(this->id().invalid());
         assert(this->config.id().invalid());
         assert(this->layer_height_profile.id().invalid());
 	}
@@ -639,9 +646,9 @@ private:
 		ar(cereal::base_class<ObjectBase>(this));
 		Internal::StaticSerializationWrapper<ModelConfigObject> config_wrapper(config);
         Internal::StaticSerializationWrapper<LayerHeightProfile> layer_heigth_profile_wrapper(layer_height_profile);
-        ar(name, input_file, instances, volumes, config_wrapper, layer_config_ranges, layer_heigth_profile_wrapper, 
+        ar(name, input_file, instances, volumes, config_wrapper, layer_config_ranges, layer_heigth_profile_wrapper,
             sla_support_points, sla_points_status, sla_drain_holes, printable, origin_translation,
-            m_bounding_box_approx, m_bounding_box_approx_valid, 
+            m_bounding_box_approx, m_bounding_box_approx_valid,
             m_bounding_box_exact, m_bounding_box_exact_valid, m_min_max_z_valid,
             m_raw_bounding_box, m_raw_bounding_box_valid, m_raw_mesh_bounding_box, m_raw_mesh_bounding_box_valid,
             cut_connectors, cut_id);
@@ -758,7 +765,7 @@ public:
         bool is_converted_from_meters{ false };
         bool is_from_builtin_objects{ false };
 
-        template<class Archive> void serialize(Archive& ar) { 
+        template<class Archive> void serialize(Archive& ar) {
             //FIXME Vojtech: Serialize / deserialize only if the Source is set.
             // likely testing input_file or object_idx would be sufficient.
             ar(input_file, object_idx, volume_idx, mesh_offset, transform, is_converted_from_inches, is_converted_from_meters, is_from_builtin_objects);
@@ -766,7 +773,7 @@ public:
     };
     Source              source;
 
-    // struct used by cut command 
+    // struct used by cut command
     // It contains information about connetors
     struct CutInfo
     {
@@ -813,7 +820,7 @@ public:
     void                set_mesh(std::unique_ptr<const TriangleMesh> &&mesh) { m_mesh = std::move(mesh); }
 	void				reset_mesh() { m_mesh = std::make_shared<const TriangleMesh>(); }
     const std::shared_ptr<const TriangleMesh>& get_mesh_shared_ptr() const { return m_mesh; }
-    // Configuration parameters specific to an object model geometry or a modifier volume, 
+    // Configuration parameters specific to an object model geometry or a modifier volume,
     // overriding the global Slic3r settings and the ModelObject settings.
     ModelConfigObject	config;
 
@@ -832,7 +839,7 @@ public:
 
     // Is set only when volume is Embossed Shape
     // Contain 2d information about embossed shape to be editabled
-    std::optional<EmbossShape> emboss_shape; 
+    std::optional<EmbossShape> emboss_shape;
 
     // A parent object owning this modifier volume.
     ModelObject*        get_object() const { return this->object; }
@@ -924,7 +931,7 @@ public:
     const Transform3d& get_matrix() const { return m_transformation.get_matrix(); }
     Transform3d get_matrix_no_offset() const { return m_transformation.get_matrix_no_offset(); }
 
-	void set_new_unique_id() { 
+	void set_new_unique_id() {
         ObjectBase::set_new_unique_id();
         this->config.set_new_unique_id();
         this->supported_facets.set_new_unique_id();
@@ -1006,8 +1013,8 @@ private:
         supported_facets(other.supported_facets), seam_facets(other.seam_facets), mm_segmentation_facets(other.mm_segmentation_facets),
         cut_info(other.cut_info), text_configuration(other.text_configuration), emboss_shape(other.emboss_shape)
     {
-		assert(this->id().valid()); 
-        assert(this->config.id().valid()); 
+		assert(this->id().valid());
+        assert(this->config.id().valid());
         assert(this->supported_facets.id().valid());
         assert(this->seam_facets.id().valid());
         assert(this->mm_segmentation_facets.id().valid());
@@ -1027,8 +1034,8 @@ private:
         name(other.name), source(other.source), config(other.config), object(object), m_mesh(new TriangleMesh(std::move(mesh))), m_type(other.m_type), m_transformation(other.m_transformation),
         cut_info(other.cut_info), text_configuration(other.text_configuration), emboss_shape(other.emboss_shape)
     {
-		assert(this->id().valid()); 
-        assert(this->config.id().valid()); 
+		assert(this->id().valid());
+        assert(this->config.id().valid());
         assert(this->supported_facets.id().valid());
         assert(this->seam_facets.id().valid());
         assert(this->mm_segmentation_facets.id().valid());
@@ -1042,8 +1049,8 @@ private:
         this->config.set_new_unique_id();
         if (m_mesh->facets_count() > 1)
             calculate_convex_hull();
-		assert(this->config.id().valid()); 
-        assert(this->config.id() != other.config.id()); 
+		assert(this->config.id().valid());
+        assert(this->config.id() != other.config.id());
         assert(this->supported_facets.id() != other.supported_facets.id());
         assert(this->seam_facets.id() != other.seam_facets.id());
         assert(this->mm_segmentation_facets.id() != other.mm_segmentation_facets.id());
@@ -1136,7 +1143,7 @@ public:
 
     Vec3d get_offset() const { return m_transformation.get_offset(); }
     double get_offset(Axis axis) const { return m_transformation.get_offset(axis); }
-    
+
     void set_offset(const Vec3d& offset) { m_transformation.set_offset(offset); }
     void set_offset(Axis axis, double offset) { m_transformation.set_offset(axis, offset); }
 
@@ -1155,7 +1162,7 @@ public:
     Vec3d get_mirror() const { return m_transformation.get_mirror(); }
     double get_mirror(Axis axis) const { return m_transformation.get_mirror(axis); }
     bool is_left_handed() const { return m_transformation.is_left_handed(); }
-    
+
     void set_mirror(const Vec3d& mirror) { m_transformation.set_mirror(mirror); }
     void set_mirror(Axis axis, double mirror) { m_transformation.set_mirror(axis, mirror); }
 
@@ -1255,7 +1262,7 @@ public:
 
     // Extensions for color print
     CustomGCode::Info custom_gcode_per_print_z;
-    
+
     // Default constructor assigns a new ID to the model.
     Model() { assert(this->id().valid()); }
     ~Model() { this->clear_objects(); this->clear_materials(); }
@@ -1276,11 +1283,11 @@ public:
     using LoadAttributes = enum_bitmask<LoadAttribute>;
 
     static Model read_from_file(
-        const std::string& input_file, 
+        const std::string& input_file,
         DynamicPrintConfig* config = nullptr, ConfigSubstitutionContext* config_substitutions = nullptr,
         LoadAttributes options = LoadAttribute::AddDefaultInstances);
     static Model read_from_archive(
-        const std::string& input_file, 
+        const std::string& input_file,
         DynamicPrintConfig* config, ConfigSubstitutionContext* config_substitutions,
         LoadAttributes options = LoadAttribute::AddDefaultInstances);
 
@@ -1310,14 +1317,14 @@ public:
     BoundingBoxf3 bounding_box_exact() const;
     // Return maximum height of all printable objects.
     double        max_z() const;
-    // Set the print_volume_state of PrintObject::instances, 
+    // Set the print_volume_state of PrintObject::instances,
     // return total number of printable objects.
     unsigned int  update_print_volume_state(const BuildVolume &build_volume);
     // Returns true if any ModelObject was modified.
     bool 		  center_instances_around_point(const Vec2d &point);
     void 		  translate(coordf_t x, coordf_t y, coordf_t z) { for (ModelObject *o : this->objects) o->translate(x, y, z); }
     TriangleMesh  mesh() const;
-    
+
     // Croaks if the duplicated objects do not fit the print bed.
     void duplicate_objects_grid(size_t x, size_t y, coordf_t dist);
 

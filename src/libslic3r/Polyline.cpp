@@ -186,6 +186,32 @@ void Polyline::split_at(const Point &point, Polyline* p1, Polyline* p2) const
     p2->points.insert(p2->points.end(), min_point_it, this->points.cend());
 }
 
+bool Polyline::split_at_index(const size_t index, Polyline* p1, Polyline* p2) const
+{
+    if (index > this->size() - 1)
+        return false;
+
+    if (index == 0) {
+        p1->clear();
+        p1->append(this->first_point());
+        *p2 = *this;
+    } else if (index == this->size() - 1) {
+        p2->clear();
+        p2->append(this->last_point());
+        *p1 = *this;
+    } else {
+        //BBS: spilit first part
+        p1->clear();
+        p1->points.reserve(index + 1);
+        p1->points.insert(p1->begin(), this->begin(), this->begin() + index + 1);
+
+        p2->clear();
+        p2->points.reserve(this->size() - index);
+        p2->points.insert(p2->begin(), this->begin() + index, this->end());
+    }
+    return true;
+}
+
 bool Polyline::split_at_length(const double length, Polyline* p1, Polyline* p2) const
 {
     if (this->points.empty()) return false;
