@@ -856,6 +856,7 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloat,              default_minimum_cruise_ratio))
     ((ConfigOptionInt,                default_jerk))
     ((ConfigOptionInts,               disable_fan_first_layers))
+    ((ConfigOptionBools,              dont_slow_down_external_perimeters))
     ((ConfigOptionEnum<DraftShield>,  draft_shield))
     ((ConfigOptionFloat,              duplicate_distance))
     ((ConfigOptionFloat,              external_perimeter_acceleration))

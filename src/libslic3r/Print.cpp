@@ -104,6 +104,7 @@ bool Print::invalidate_state_by_config_options(const ConfigOptionResolver & /* n
         "default_jerk",
         "deretract_speed",
         "disable_fan_first_layers",
+        "dont_slow_down_external_perimeters",
         "duplicate_distance",
         "end_gcode",
         "end_filament_gcode",

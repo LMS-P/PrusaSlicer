@@ -1157,6 +1157,15 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
 
+    def = this->add("dont_slow_down_external_perimeters", coBools);
+    def->label = L("Don't slow down external perimeters to meet minumum layer print time");
+    def->tooltip = L("If enabled, this setting will ensure external perimeters are not slowed down to meet the minimum layer time. "
+                     "This is particularly helpful in the below scenarios:\n\n "
+                     "1. To avoid changes in shine when printing glossy filaments \n"
+                     "2. To avoid changes in external wall speed which may create slight wall artefacts that appear like z banding \n"
+                     "3. To avoid printing at speeds which cause VFAs (fine artefacts) on the external walls\n\n");
+    def->set_default_value(new ConfigOptionBools { false });
+
     def = this->add("fan_always_on", coBools);
     def->label = L("Keep fan always on");
     def->tooltip = L("If this is enabled, fan will never be disabled and will be kept running at least "

@@ -2372,6 +2372,7 @@ void TabFilament::build()
         optgroup = page->new_optgroup(L("Cooling thresholds"), 25);
         optgroup->append_single_option_line("fan_below_layer_time", category_path + "cooling-thresholds");
         optgroup->append_single_option_line("slowdown_below_layer_time", category_path + "cooling-thresholds");
+        optgroup->append_single_option_line("dont_slow_down_external_perimeters");
         optgroup->append_single_option_line("min_print_speed", category_path + "cooling-thresholds");
 
     page = add_options_page(L("Advanced"), "wrench");
