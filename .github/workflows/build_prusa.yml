@@ -23,6 +23,7 @@ jobs:
     env:
       date:
       ver:
+      ver_pure:
 
     steps:
       - name: Checkout

@@ -11,6 +11,7 @@ jobs:
     env:
       date:
       ver:
+      DMG_UNIVERSAL:
 
     steps:
       - name: Checkout
@@ -131,6 +132,11 @@ jobs:
     permissions:
       contents: write
     if: startsWith(github.ref, 'refs/heads/release/')
+    env:
+      date:
+      ver:
+      ver_pure:
+        
     steps:
       - name: Checkout
         uses: actions/checkout@v4
