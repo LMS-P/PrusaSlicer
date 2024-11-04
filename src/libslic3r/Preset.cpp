@@ -593,7 +593,8 @@ static std::vector<std::string> s_Preset_printer_options {
     "machine_limits_usage", "thumbnails", "thumbnails_format",
     "nozzle_high_flow",
     // BOSS
-    "init_z_rotate"
+    "init_z_rotate",
+    "retract_lift_surfaces",
 };
 
 static std::vector<std::string> s_Preset_sla_print_options {

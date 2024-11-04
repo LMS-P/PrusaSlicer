@@ -227,6 +227,13 @@ enum TiltSpeeds : int {
     tsMove8000,
 };
 
+enum class RetractLiftSurfaces {
+    AllSurfaces,
+    TopOnly,
+    BottomOnly,
+    TopAndBottom
+};
+
 #define CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NAME) \
     template<> const t_config_enum_names& ConfigOptionEnum<NAME>::get_enum_names(); \
     template<> const t_config_enum_values& ConfigOptionEnum<NAME>::get_enum_values();
@@ -255,6 +262,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(GCodeThumbnailsFormat)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(ForwardCompatibilitySubstitutionRule)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PerimeterGeneratorType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(TopOnePerimeterType)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(RetractLiftSurfaces)
 
 #undef CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS
 
@@ -895,6 +903,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                small_area_infill_flow_compensation_compensation_factor_7))
     ((ConfigOptionFloat,                small_area_infill_flow_compensation_compensation_factor_8))
     ((ConfigOptionFloat,                small_area_infill_flow_compensation_compensation_factor_9))
+    ((ConfigOptionEnums<RetractLiftSurfaces>,   retract_lift_surfaces))
 )
 
 static inline std::string get_extrusion_axis(const GCodeConfig &cfg)

@@ -2074,7 +2074,7 @@ std::vector<std::pair<std::string, std::vector<std::string>>> filament_overrides
         "filament_travel_slope",
         "filament_travel_lift_before_obstacle",
         "filament_retract_lift_above",
-        "filament_retract_lift_below"
+        "filament_retract_lift_below",
     }},
     {"Retraction", {
         "filament_retract_length",
@@ -3267,7 +3267,9 @@ const std::vector<std::string> extruder_options = {
     "retract_speed", "deretract_speed", "retract_restart_extra", "retract_before_travel",
     "retract_layer_change", "wipe", "retract_before_wipe", "travel_ramping_lift",
     "travel_slope", "travel_max_lift", "travel_lift_before_obstacle", "nozzle_high_flow",
-    "retract_length_toolchange", "retract_restart_extra_toolchange",
+    "retract_length_toolchange", "retract_restart_extra_toolchange", 
+    //BOSS
+    "retract_lift_surfaces",
 };
 
 void TabPrinter::build_extruder_pages(size_t n_before_extruders)
@@ -3461,6 +3463,10 @@ void TabPrinter::build_extruder_pages(size_t n_before_extruders)
         line = { L("Only lift"), "" };
         line.append_option(optgroup->get_option("retract_lift_above", extruder_idx));
         line.append_option(optgroup->get_option("retract_lift_below", extruder_idx));
+        optgroup->append_line(line);
+
+        line = { L("On surfaces"), "" };
+        line.append_option(optgroup->get_option("retract_lift_surfaces", extruder_idx));
         optgroup->append_line(line);
 
         optgroup = page->new_optgroup(L("Retraction"));
@@ -3698,7 +3704,7 @@ void TabPrinter::toggle_options()
 
         // retract lift above / below only applies if using retract lift
         vec.resize(0);
-        vec = { "retract_lift_above", "retract_lift_below" };
+        vec = { "retract_lift_above", "retract_lift_below", "retract_lift_surfaces" };
         for (auto el : vec)
             toggle_option(el, lifts_z, i);
 

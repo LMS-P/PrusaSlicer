@@ -306,6 +306,14 @@ static const t_config_enum_values s_keys_map_TiltSpeeds{
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(TiltSpeeds)
 
+static t_config_enum_values s_keys_map_RetractLiftSurfaces {
+    { "All Surfaces",   int(RetractLiftSurfaces::AllSurfaces) },
+    { "Top Only",       int(RetractLiftSurfaces::TopOnly) },
+    { "Bottom Only",    int(RetractLiftSurfaces::BottomOnly) },
+    { "Top and Bottom", int(RetractLiftSurfaces::TopAndBottom) }
+};
+CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(RetractLiftSurfaces)
+
 static void assign_printer_technology_to_unknown(t_optiondef_map &options, PrinterTechnology printer_technology)
 {
     for (std::pair<const t_config_option_key, ConfigOptionDef> &kvp : options)
@@ -3024,6 +3032,18 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloats { 0. });
 
+    def = this->add("retract_lift_surfaces", coEnums);
+    def->label = L("On surfaces");
+    def->tooltip = L("Control Z Hop behavior. This setting is impacted by the \"Only lift Z above/below\" setting.");
+    def->set_enum<RetractLiftSurfaces>({
+        { "All Surfaces",   L("All surfaces") },
+        { "Top Only",       L("Top only") },
+        { "Bottom Only",    L("Bottom only") },
+        { "Top and Bottom", L("Top and bottom") }
+    });
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionEnums<RetractLiftSurfaces>({ RetractLiftSurfaces::AllSurfaces }));
+
     def = this->add("retract_restart_extra", coFloats);
     def->label = L("Deretraction extra length");
     def->tooltip = L("When the retraction is compensated after the travel move, the extruder will push "
@@ -4194,7 +4214,7 @@ void PrintConfigDef::init_extruder_option_keys()
     // ConfigOptionFloats, ConfigOptionPercents, ConfigOptionBools, ConfigOptionStrings
     m_extruder_option_keys = {
         "nozzle_diameter", "min_layer_height", "max_layer_height", "extruder_offset",
-        "retract_length", "retract_lift", "retract_lift_above", "retract_lift_below", "retract_speed", "deretract_speed",
+        "retract_length", "retract_lift", "retract_lift_above", "retract_lift_below", "retract_lift_surfaces", "retract_speed", "deretract_speed",
         "retract_before_wipe", "retract_restart_extra", "retract_before_travel", "wipe",
         "travel_slope", "travel_max_lift", "travel_ramping_lift", "travel_lift_before_obstacle",
         "retract_layer_change", "retract_length_toolchange", "retract_restart_extra_toolchange", "extruder_colour",
@@ -4211,6 +4231,7 @@ void PrintConfigDef::init_extruder_option_keys()
         "retract_lift",
         "retract_lift_above",
         "retract_lift_below",
+        "retract_lift_surfaces",
         "retract_restart_extra",
         "retract_restart_extra_toolchange",
         "retract_speed",
