@@ -109,7 +109,7 @@ jobs:
         working-directory: ${{ github.workspace }}/build/src/Release
         run: |
           7z a -tzip ${{ github.workspace }}\build\PrusaSlicer-${{ env.ver }}+win64-${{ env.date }}.zip resources *.exe *.dll mesa/opengl32.dll
-          7z l $${{ github.workspace }}\build\PrusaSlicer-${{ env.ver }}+win64-${{ env.date }}.zip
+          7z l ${{ github.workspace }}\build\PrusaSlicer-${{ env.ver }}+win64-${{ env.date }}.zip
 
       - name: Upload PrusaSlicer (BOSS) Portable
         uses: actions/upload-artifact@v4
