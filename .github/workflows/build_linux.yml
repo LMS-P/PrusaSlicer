@@ -13,6 +13,7 @@ jobs:
       options: --privileged
     env:
       date: ""
+      date_long: ""
       ver: ""
       ver_pure: ""
     steps:
@@ -30,7 +31,20 @@ jobs:
           echo "ver=$ver" >> $GITHUB_ENV
           echo "ver_pure=$ver_pure" >> $GITHUB_ENV
           echo "date=$(date +'%Y%m%d')" >> $GITHUB_ENV
+          echo "date_long=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
         shell: bash
+
+      - name: Update version information
+        if: startsWith(github.ref, 'refs/heads/release/')
+        shell: bash
+        run: |
+          sed --in-place -e 's/"nightly"/"${{ env.ver }}+"/g' .flatpak/io.github.mjonuschat.PrusaSlicer.metainfo.xml
+          sed --in-place -e 's/tag\/nightly/tag\/version_${{ env.ver }}+boss/g' .flatpak/io.github.mjonuschat.PrusaSlicer.metainfo.xml
+
+      - name: Update date information
+        shell: bash
+        run: |
+          sed --in-place -e 's/2024-09-19/${{ env.date_long }}/g' .flatpak/io.github.mjonuschat.PrusaSlicer.metainfo.xml
 
       - name: Build PrusaSlicer (BOSS) Linux Flatpak
         uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
