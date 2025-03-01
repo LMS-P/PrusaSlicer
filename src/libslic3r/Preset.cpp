@@ -625,7 +625,8 @@ static std::vector<std::string> s_Preset_printer_options {
     "machine_limits_usage", "thumbnails", "thumbnails_format",
     "nozzle_high_flow", "extruder_clearance_radius", "extruder_clearance_height",
     // BOSS
-    "init_z_rotate"
+    "init_z_rotate",
+    "bed_exclude_area",
 };
 
 static std::vector<std::string> s_Preset_sla_print_options {
@@ -1502,6 +1503,11 @@ inline t_config_option_keys deep_diff(const ConfigBase &config_this, const Confi
                 // Scalar variable, or a vector variable, which is independent from number of extruders,
                 // thus the vector is presented to the user as a single input.
                 diff.emplace_back(opt_key);
+            // BOSS: add bed_exclude_area
+            } else if (opt_key == "bed_exclude_area") {
+                // Scalar variable, or a vector variable, which is independent from number of extruders,
+                // thus the vector is presented to the user as a single input.
+                diff.emplace_back(opt_key);                
             } else if (opt_key == "default_filament_profile") {
                 // Ignore this field, it is not presented to the user, therefore showing a "modified" flag for this parameter does not help.
                 // Also the length of this field may differ, which may lead to a crash if the block below is used.

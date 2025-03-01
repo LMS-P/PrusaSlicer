@@ -143,6 +143,8 @@ namespace Slic3r {
         bool is_binary_file;
         unsigned int id;
         std::vector<MoveVertex> moves;
+        // BOSS: add bed exclude area
+        Pointfs bed_exclude_area;        
         // Positions of ends of lines of the final G-code this->filename after TimeProcessor::post_process() finalizes the G-code.
         // Binarized gcodes usually have several gcode blocks. Each block has its own list on ends of lines.
         // Ascii gcodes have only one list on ends of lines

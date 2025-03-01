@@ -526,6 +526,8 @@ void GCodeProcessorResult::reset() {
     moves.clear();
     lines_ends.clear();
     bed_shape = Pointfs();
+    // BOSS: add bed exclude area
+    bed_exclude_area = Pointfs();
     max_print_height = 0.0f;
     z_offset = 0.0f;
     settings_ids.reset();
@@ -728,6 +730,11 @@ void GCodeProcessor::apply_config(const PrintConfig& config)
     const ConfigOptionFloat* z_offset = config.option<ConfigOptionFloat>("z_offset");
     if (z_offset != nullptr)
         m_z_offset = z_offset->value;
+        
+    // BOSS: add bed_exclude_area
+    const ConfigOptionPoints* bed_exclude_area = config.option<ConfigOptionPoints>("bed_exclude_area");
+    if (bed_exclude_area != nullptr)
+        m_result.bed_exclude_area = bed_exclude_area->values;
 }
 
 void GCodeProcessor::apply_config(const DynamicPrintConfig& config)

@@ -69,6 +69,22 @@ wxString double_to_string(double const value, const int max_precision /*= 4*/)
     return s;
 }
 
+wxString get_thumbnail_string(const Vec2d& value)
+{
+    wxString ret_str = wxString::Format("%.2fx%.2f", value[0], value[1]);
+    return ret_str;
+}
+
+wxString get_thumbnails_string(const std::vector<Vec2d>& values)
+{
+    wxString ret_str;
+	for (size_t i = 0; i < values.size(); ++ i) {
+		const Vec2d& el = values[i];
+		ret_str += wxString::Format((i == 0) ? "%ix%i" : ", %ix%i", int(el[0]), int(el[1]));
+	}
+    return ret_str;
+}
+
 ThumbnailErrors validate_thumbnails_string(wxString& str, const wxString& def_ext = "PNG")
 {
     std::string input_string = into_u8(str);
@@ -412,6 +428,61 @@ void Field::get_value_by_opt_type(wxString& str, const bool check_value/* = true
         m_value = into_u8(str);
 		break;
     }
+    case coPoints: {
+        std::vector<Vec2d> out_values;
+        str.Replace(" ", wxEmptyString, true);
+        if (!str.IsEmpty()) {
+            bool invalid_val = false;
+            bool out_of_range_val = false;
+            wxStringTokenizer points(str, ",");
+            while (points.HasMoreTokens()) {
+                wxString token = points.GetNextToken();
+                double x, y;
+                wxStringTokenizer _point(token, "x");
+                if (_point.HasMoreTokens()) {
+                    wxString x_str = _point.GetNextToken();
+                    if (x_str.ToDouble(&x) && _point.HasMoreTokens()) {
+                        wxString y_str = _point.GetNextToken();
+                        if (y_str.ToDouble(&y) && !_point.HasMoreTokens()) {
+                            if (m_opt_id == "bed_exclude_area") {
+                                if (0 <= x &&  0 <= y) {
+                                    out_values.push_back(Vec2d(x, y));
+                                    continue;
+                                }
+                            }
+                            else {
+                                if (0 < x && x < 1000 && 0 < y && y < 1000) {
+                                    out_values.push_back(Vec2d(x, y));
+                                    continue;
+                                }
+                            }
+                            out_of_range_val = true;
+                            break;
+                        }
+                    }
+                }
+                invalid_val = true;
+                break;
+            }
+
+            if (out_of_range_val) {
+                wxString text_value;
+                if (!m_value.empty())
+                    text_value = get_thumbnails_string(boost::any_cast<std::vector<Vec2d>>(m_value));
+                set_value(text_value, true);
+                show_error(m_parent, _L("Value is out of range."));
+            }
+            else if (invalid_val) {
+                wxString text_value;
+                if (!m_value.empty())
+                    text_value = get_thumbnails_string(boost::any_cast<std::vector<Vec2d>>(m_value));
+                set_value(text_value, true);
+                show_error(m_parent, format_wxstr(_L("Invalid format. Expected vector format: \"%1%\""),"XxY, XxY, ..." ));
+            }
+        }
+
+        m_value = out_values;
+        break; }
 
 	default:
 		break;
@@ -1761,4 +1832,3 @@ boost::any& SliderCtrl::get_value()
 
 
 } // Slic3r :: GUI
-
