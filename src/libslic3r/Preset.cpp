@@ -576,6 +576,9 @@ static std::vector<std::string> s_Preset_print_options {
 
     "preheat_time",
     "preheat_steps",
+
+    "wipe_tower_disable_filament_ramming",
+    "wipe_tower_disable_cooling_moves",
 };
 
 static std::vector<std::string> s_Preset_filament_options {
