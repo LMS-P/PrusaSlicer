@@ -576,6 +576,8 @@ static std::vector<std::string> s_Preset_print_options {
 
     "preheat_time",
     "preheat_steps",
+
+    "external_perimeters_first_holes",
 };
 
 static std::vector<std::string> s_Preset_filament_options {
