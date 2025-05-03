@@ -11,9 +11,10 @@
 #include "libslic3r/Exception.hpp"
 #include "libslic3r/Line.hpp"
 #include "libslic3r/Polygon.hpp"
+#include "libslic3r/Geometry/ArcWelder.hpp"
 
 namespace Slic3r::ExtrusionProcessor {
-
+/*
 ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath                             &path,
                                                           const AABBTreeLines::LinesDistancer<Linef>      &unscaled_prev_layer,
                                                           const AABBTreeLines::LinesDistancer<CurledLine> &prev_layer_curled_lines)
@@ -283,5 +284,127 @@ OverhangSpeeds calculate_overhang_speed(const ExtrusionAttributes  &attributes,
 
     return overhang_speeds;
 }
+*/
+
+class OverhangExtrusionProcessor
+{
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<Linef>> prev_layer_boundaries;
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<Linef>> next_layer_boundaries;
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<CurledLine>> prev_curled_extrusions;
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<CurledLine>> next_curled_extrusions;
+    const PrintObject                                                            *current_object;
+
+public:
+    void set_current_object(const PrintObject *object) { current_object = object; }
+
+    void prepare_for_new_layer(const PrintObject * obj, const Layer *layer)
+    {
+        if (layer == nullptr) return;
+        const PrintObject *object = obj;
+        prev_layer_boundaries[object] = next_layer_boundaries[object];
+        next_layer_boundaries[object] = AABBTreeLines::LinesDistancer<Linef>{to_unscaled_linesf(layer->lslices)};
+        prev_curled_extrusions[object] = next_curled_extrusions[object];
+        next_curled_extrusions[object] = AABBTreeLines::LinesDistancer<CurledLine>{layer->curled_lines};
+    }
+
+    std::vector<ProcessedPoint> calculate_and_split_overhanging_extrusions(
+        const Geometry::ArcWelder::Path &path,
+        const ExtrusionAttributes &path_attr,
+        const ConfigOptionPercents &overlaps,
+        const ConfigOptionFloatsOrPercents &speeds,
+        float ext_perimeter_speed,
+        float original_speed,
+    ) {
+        size_t                               speed_sections_count = std::min(overlaps.values.size(), speeds.values.size());
+        std::vector<std::pair<float, float>> speed_sections;
+
+        for (size_t i = 0; i < speed_sections_count; i++) {
+            float distance = path_attr.width * (1.0 - (overlaps.get_at(i) / 100.0));
+            float speed    = speeds.get_at(i).percent ? (ext_perimeter_speed * speeds.get_at(i).value / 100.0) : speeds.get_at(i).value;
+            speed_sections.push_back({distance, speed});
+        }
+        std::sort(speed_sections.begin(), speed_sections.end(),
+                  [](const std::pair<float, float> &a, const std::pair<float, float> &b) {
+                    if (a.first == b.first) {
+                        return a.second > b.second;
+                    }
+                    return a.first < b.first; });
+
+        std::pair<float, float> last_section{INFINITY, 0};
+        for (auto &section : speed_sections) {
+            if (section.first == last_section.first) {
+                section.second = last_section.second;
+            } else {
+                last_section = section;
+            }
+        }
+
+        // Orca: Find the smallest overhang distance where speed adjustments begin
+        float smallest_distance_with_lower_speed = std::numeric_limits<float>::infinity(); // Initialize to a large value
+        bool found = false;
+        for (const auto& section : speed_sections) {
+            if (section.second <= original_speed) {
+                if (section.first < smallest_distance_with_lower_speed) {
+                    smallest_distance_with_lower_speed = section.first;
+                    found = true;
+                }
+            }
+        }
+
+        // If a meaningful (i.e. needing slowdown) overhang distance was not found, then we shouldn't split the lines
+        if (!found)
+            smallest_distance_with_lower_speed=-1.f;
+
+        // Orca: Pass to the point properties estimator the smallest ovehang distance that triggers a slowdown (smallest_distance_with_lower_speed)
+        Points points;
+        points.reserve(path.size());
+        for (const Geometry::ArcWelder::Segment segment : path)
+            points.emplace_back(segment);
+
+        std::vector<ExtendedPoint> extended_points = estimate_points_properties<true, true, true, true>
+                                                                (points,
+                                                                 prev_layer_boundaries[current_object],
+                                                                 path_attr.width,
+                                                                 -1,
+                                                                 smallest_distance_with_lower_speed);
+        const auto width_inv = 1.0f / path_attr.width;
+        std::vector<ProcessedPoint> processed_points;
+        processed_points.reserve(extended_points.size());
+        for (size_t i = 0; i < extended_points.size(); i++) {
+            const ExtendedPoint &curr = extended_points[i];
+            const ExtendedPoint &next = extended_points[i + 1 < extended_points.size() ? i + 1 : i];
+
+            float artificial_distance_to_curled_lines = 0.0;
+            auto calculate_speed = [&speed_sections, &original_speed](float distance) {
+                float final_speed;
+                if (distance <= speed_sections.front().first) {
+                    final_speed = original_speed;
+                } else if (distance >= speed_sections.back().first) {
+                    final_speed = speed_sections.back().second;
+                } else {
+                    size_t section_idx = 0;
+                    while (distance > speed_sections[section_idx + 1].first) {
+                        section_idx++;
+                    }
+                    float t = (distance - speed_sections[section_idx].first) /
+                              (speed_sections[section_idx + 1].first - speed_sections[section_idx].first);
+                    t           = std::clamp(t, 0.0f, 1.0f);
+                    final_speed = (1.0f - t) * speed_sections[section_idx].second + t * speed_sections[section_idx + 1].second;
+                }
+                return round(final_speed);
+            };
+
+            float extrusion_speed = std::min(calculate_speed(curr.distance), calculate_speed(next.distance));
+            // ORCA: Clamp resulting speed to lowest of calculated speed based on the overhang values and the current speed
+            // Fixes bug where resulting overhang speed is higher than the current speed due to (for example) volumetric flow limits.
+            extrusion_speed = std::min(extrusion_speed, original_speed);
+
+            float overlap = std::min(1 - (curr.distance+artificial_distance_to_curled_lines) * width_inv, 1 - (next.distance+artificial_distance_to_curled_lines) * width_inv);
+
+            processed_points.push_back({ scaled(curr.position), extrusion_speed, overlap });
+        }
+        return processed_points;
+    }
+};
 
 } // namespace Slic3r::ExtrusionProcessor

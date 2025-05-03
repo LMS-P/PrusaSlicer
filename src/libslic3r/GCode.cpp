@@ -347,6 +347,7 @@ GCodeGenerator::ObjectsLayerToPrint GCodeGenerator::collect_layers_to_print(cons
             }
         }
 
+        layer_to_print.original_object = &object;
         layers_to_print.emplace_back(layer_to_print);
 
         bool has_extrusions = (layer_to_print.object_layer && layer_to_print.object_layer->has_extrusions())
@@ -2716,6 +2717,22 @@ LayerResult GCodeGenerator::process_layer(
         }
     }
 
+    for (const auto &layer_to_print : layers) {
+        if (layer_to_print.object_layer) {
+            const auto &regions = layer_to_print.object_layer->regions();
+            const bool enable_dynamic_overhang_speeds =
+                std::any_of(regions.begin(), regions.end(), [](const LayerRegion *r) {
+                    return r->has_extrusions() && r->region().config().enable_dynamic_overhang_speeds.getBool();
+                });
+            if (enable_dynamic_overhang_speeds) {
+                m_overhang_extrusion_processor.prepare_for_new_layer(
+                    layer_to_print.original_object,
+                    layer_to_print.object_layer
+                );
+            }
+        }
+    }
+
     const bool has_custom_gcode_to_emit     = single_object_instance_idx == size_t(-1) && layer_tools.custom_gcode != nullptr;
     const int  extruder_id_for_custom_gcode = int(layer_tools.extruder_needed_for_color_changer) - 1;
 
@@ -2897,6 +2914,7 @@ void GCodeGenerator::initialize_instance(
     }
 
     m_current_instance = next_instance;
+    m_overhang_extrusion_processor.set_current_object(&m_current_instance.print_object);
 
     this->set_origin(unscale(offset));
     m_label_objects.update(&print_instance.print_object.instances()[print_instance.instance_id]);
@@ -3561,9 +3579,9 @@ std::string GCodeGenerator::_extrude(
         }
 
         external_perimeter_reference_speed = cap_speed(external_perimeter_reference_speed, m_config, m_writer.extruder()->id(), path_attr);
-        dynamic_print_and_fan_speeds       = ExtrusionProcessor::calculate_overhang_speed(path_attr, this->m_config, m_writer.extruder()->id(),
-                                                                                    float(external_perimeter_reference_speed), float(speed),
-                                                                                    m_current_dynamic_fan_speed);
+        // dynamic_print_and_fan_speeds       = ExtrusionProcessor::calculate_overhang_speed(path_attr, this->m_config, m_writer.extruder()->id(),
+        //                                                                             float(external_perimeter_reference_speed), float(speed),
+        //                                                                             m_current_dynamic_fan_speed);
     }
 
     if (dynamic_print_and_fan_speeds.print_speed > -1) {
@@ -3572,6 +3590,67 @@ std::string GCodeGenerator::_extrude(
 
     // cap speed with max_volumetric_speed anyway (even if user is not using autospeed)
     speed = cap_speed(speed, m_config, m_writer.extruder()->id(), path_attr);
+
+    bool variable_speed = false;
+    std::vector<ExtrusionProcessor::ProcessedPoint> processed_points {};
+
+    if (m_config.enable_dynamic_overhang_speeds.getBool() && !this->on_first_layer() &&
+        (path_attr.role.is_bridge() || path_attr.role.is_perimeter())) {
+            bool is_external = path_attr.role.is_external_perimeter();
+            double ref_speed   = is_external ? m_config.get_abs_value("external_perimeter_speed") : m_config.get_abs_value("perimeter_speed");
+            if (ref_speed == 0)
+                ref_speed = EXTRUDER_CONFIG(filament_max_volumetric_speed) / e_per_mm;
+
+            if (EXTRUDER_CONFIG(filament_max_volumetric_speed) > 0) {
+                ref_speed = std::min(ref_speed, EXTRUDER_CONFIG(filament_max_volumetric_speed) / e_per_mm);
+            }
+
+            ConfigOptionPercents         overhang_overlap_levels({90, 75, 50, 25, 13, 0});
+            ConfigOptionFloatsOrPercents dynamic_overhang_speeds(
+                {FloatOrPercent{100, true},
+                (m_config.get_abs_value("overhang_speed_3", ref_speed) < 0.5) ?
+                    FloatOrPercent{100, true} :
+                    FloatOrPercent{
+                        m_config.get_abs_value("overhang_speed_3", ref_speed) * 100 / ref_speed, true
+                    },
+                (m_config.get_abs_value("overhang_speed_2", ref_speed) < 0.5) ?
+                    FloatOrPercent{100, true} :
+                    FloatOrPercent{
+                        m_config.get_abs_value("overhang_speed_2", ref_speed) * 100 / ref_speed, true
+                    },
+                (m_config.get_abs_value("overhang_speed_1", ref_speed) < 0.5) ?
+                    FloatOrPercent{100, true} :
+                    FloatOrPercent{
+                        m_config.get_abs_value("overhang_speed_1", ref_speed) * 100 / ref_speed, true
+                    },
+                (m_config.get_abs_value("overhang_speed_0", ref_speed) < 0.5) ?
+                    FloatOrPercent{100, true} :
+                    FloatOrPercent{
+                        m_config.get_abs_value("overhang_speed_0", ref_speed) *
+                            100 / ref_speed,
+                        true
+                    },
+                FloatOrPercent{m_config.get_abs_value("bridge_speed") * 100 / ref_speed, true}}
+            );
+
+            processed_points = m_overhang_extrusion_processor.calculate_and_split_overhanging_extrusions(
+                path, path_attr, overhang_overlap_levels, dynamic_overhang_speeds, ref_speed, speed
+            );
+
+            // Ignore small speed variations (under 1mm/sec)
+            variable_speed = std::any_of(
+                processed_points.begin(), processed_points.end(),
+                [speed](const ExtrusionProcessor::ProcessedPoint &p) {
+                    return fabs(double(p.speed) - speed) > 1;
+                }
+            );
+    } else {
+        for (size_t i = 0; i < path.size(); i++) {
+            ExtrusionProcessor::ExtendedPoint curr{unscaled(path[i])};
+            processed_points.push_back({ scaled(curr.position), F, 1.0f });
+
+        }
+    }
 
     double F = speed * 60;  // convert mm/sec to mm/min
 
@@ -3630,7 +3709,7 @@ std::string GCodeGenerator::_extrude(
     }
 
     // F is mm per minute.
-    gcode += m_writer.set_speed(F, "", cooling_marker_setspeed_comments);
+    double last_set_speed = !variable_speed ? F : processed_points[0].speed * 60;
 
     if (dynamic_print_and_fan_speeds.fan_speed >= 0) {
         const int fan_speed = int(dynamic_print_and_fan_speeds.fan_speed);
@@ -3650,11 +3729,11 @@ std::string GCodeGenerator::_extrude(
     }
     Vec2d prev_exact = this->point_to_gcode(path.front().point);
     Vec2d prev = GCodeFormatter::quantize(prev_exact);
-    auto  it   = path.begin();
-    auto  end  = path.end();
+    auto  it   = processed_points.begin();
+    auto  end  = processed_points.end();
     for (++ it; it != end; ++ it) {
         std::string tempComment = comment;
-        Vec2d p_exact = this->point_to_gcode(it->point);
+        Vec2d p_exact = this->point_to_gcode(it->segment.point);
         Vec2d p = GCodeFormatter::quantize(p_exact);
         //assert(p != prev);
         if (p != prev) {
@@ -3668,7 +3747,7 @@ std::string GCodeGenerator::_extrude(
                 {
                     // Calculate quantized IJ circle center offset.
                     ij = GCodeFormatter::quantize(Vec2d(
-                            Geometry::ArcWelder::arc_center(prev_exact.cast<double>(), p_exact.cast<double>(), double(radius), it->ccw())
+                            Geometry::ArcWelder::arc_center(prev_exact.cast<double>(), p_exact.cast<double>(), double(radius), it->segment.ccw())
                             - prev));
                     if (ij == Vec2d::Zero())
                         // Don't extrude a degenerated circle.
@@ -3678,7 +3757,7 @@ std::string GCodeGenerator::_extrude(
             if (radius == 0) {
                 // Extrude line segment.
                 if (const double line_length = (p - prev).norm(); line_length > 0) {
-                    double extrusion_amount{e_per_mm * line_length * it->e_fraction};
+                    double extrusion_amount{e_per_mm * line_length * it->segment.e_fraction};
 
                     if (m_small_area_infill_flow_compensator) {
                         double old_extrusion_amount = extrusion_amount;
@@ -3689,8 +3768,8 @@ std::string GCodeGenerator::_extrude(
                         }
                     }
 
-                    if (it->height_fraction < 1.0 || std::prev(it)->height_fraction < 1.0) {
-                        const Vec3d destination{to_3d(p, this->m_last_layer_z + (it->height_fraction - 1) * m_last_height)};
+                    if (it->segment.height_fraction < 1.0 || std::prev(it)->segment.height_fraction < 1.0) {
+                        const Vec3d destination{to_3d(p, this->m_last_layer_z + (it->segment.height_fraction - 1) * m_last_height)};
                         gcode += m_writer.extrude_to_xyz(destination, extrusion_amount, tempComment);
                     } else {
                         gcode += m_writer.extrude_to_xy(p, extrusion_amount, tempComment);
@@ -3710,7 +3789,7 @@ std::string GCodeGenerator::_extrude(
                         tempComment += Slic3r::format(" | Old Flow Value: %0.5f Length: %0.5f",oldE, line_length);
                     }
                 }
-                gcode += m_writer.extrude_to_xy_G2G3IJ(p, ij, it->ccw(), dE, tempComment);
+                gcode += m_writer.extrude_to_xy_G2G3IJ(p, ij, it->segment.ccw(), dE, tempComment);
             }
             prev = p;
             prev_exact = p_exact;

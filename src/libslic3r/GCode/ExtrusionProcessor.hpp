@@ -37,6 +37,7 @@
 #include "libslic3r/Exception.hpp"
 #include "libslic3r/PrintConfig.hpp"
 #include "libslic3r/ExtrusionEntityCollection.hpp"
+#include "libslic3r/Geometry/ArcWelder.hpp"
 
 namespace Slic3r {
 class CurledLine;
@@ -69,13 +70,22 @@ struct PropertiesEstimationConfig {
     float max_line_length{-1.0f};
 };
 
-template<bool SIGNED_DISTANCE, typename POINTS, typename L>
-std::vector<ExtendedPoint> estimate_points_properties(
-    const POINTS &input_points,
-    const AABBTreeLines::LinesDistancer<L> &unscaled_prev_layer,
-    const PropertiesEstimationConfig &config
-) {
-    bool looped = input_points.front() == input_points.back();
+struct ProcessedPoint
+{
+    Geometry::ArcWelder::Segment segment;
+    float radius;
+    float speed = 1.0f;
+    float overlap = 1.0f;
+};
+
+template<bool SCALED_INPUT, bool ADD_INTERSECTIONS, bool PREV_LAYER_BOUNDARY_OFFSET, bool SIGNED_DISTANCE, typename POINTS, typename L>
+std::vector<ExtendedPoint> estimate_points_properties(const POINTS                           &input_points,
+                                                      const AABBTreeLines::LinesDistancer<L> &unscaled_prev_layer,
+                                                      float                                   flow_width,
+                                                      float                                   max_line_length = -1.0f,
+                                                      float                                   min_distance = -1.0f)
+{
+    bool   looped     = input_points.front() == input_points.back();
     std::function<size_t(size_t,size_t)> get_prev_index = [](size_t idx, size_t count) {
         if (idx > 0) {
             return idx - 1;
@@ -103,28 +113,40 @@ std::vector<ExtendedPoint> estimate_points_properties(
         };
     };
 
+    using P = typename POINTS::value_type;
+    // ORCA:
+    // minimum spacing threshold for any newly generated points
+    // Setting the minimum spacing to be 25% of the flow width ensures the points are spaced far enough apart
+    // to avoid micro stutters while the movement of the print head is still fine-grained enough to maintain
+    // print quality.
+    double min_spacing = flow_width*0.25;
+
     using AABBScalar = typename AABBTreeLines::LinesDistancer<L>::Scalar;
     if (input_points.empty())
         return {};
-    float boundary_offset = config.prev_layer_boundary_offset ? 0.5 * config.flow_width : 0.0f;
+    float boundary_offset = PREV_LAYER_BOUNDARY_OFFSET ? 0.5 * flow_width : 0.0f;
+    auto  maybe_unscale   = [](const P &p) { return SCALED_INPUT ? unscaled(p) : p.template cast<double>(); };
 
     std::vector<ExtendedPoint> points;
-    points.reserve(input_points.size() * 1.5);
+    points.reserve(input_points.size() * (ADD_INTERSECTIONS ? 1.5 : 1));
 
     {
-        ExtendedPoint start_point{unscaled(input_points.front())};
+        ExtendedPoint start_point{maybe_unscale(input_points.front())};
         auto [distance, nearest_line,
               x] = unscaled_prev_layer.template distance_from_lines_extra<SIGNED_DISTANCE>(start_point.position.cast<AABBScalar>());
         start_point.distance = distance + boundary_offset;
         points.push_back(start_point);
     }
     for (size_t i = 1; i < input_points.size(); i++) {
-        ExtendedPoint next_point{unscaled(input_points[i])};
+        ExtendedPoint next_point{maybe_unscale(input_points[i])};
+        next_point.radius = input_points[i].radius;
         auto [distance, nearest_line,
               x] = unscaled_prev_layer.template distance_from_lines_extra<SIGNED_DISTANCE>(next_point.position.cast<AABBScalar>());
         next_point.distance = distance + boundary_offset;
 
-        if (((points.back().distance > boundary_offset + EPSILON) != (next_point.distance > boundary_offset + EPSILON))) {
+        // Intersection handling
+        if (ADD_INTERSECTIONS &&
+            ((points.back().distance > boundary_offset + EPSILON) != (next_point.distance > boundary_offset + EPSILON))) {
             const ExtendedPoint &prev_point    = points.back();
             auto                 intersections = unscaled_prev_layer.template intersections_with_line<true>(
                 L{prev_point.position.cast<AABBScalar>(), next_point.position.cast<AABBScalar>()});
@@ -132,13 +154,18 @@ std::vector<ExtendedPoint> estimate_points_properties(
                 ExtendedPoint p{};
                 p.position = intersection.first.template cast<double>();
                 p.distance = boundary_offset;
-                points.push_back(p);
+                // ORCA: Filter out points that are introduced at intersections if their distance from the previous or next point is not meaningful
+                if ((p.position - prev_point.position).norm() > min_spacing &&
+                    (next_point.position - p.position).norm() > min_spacing) {
+                    points.push_back(p);
+                }
             }
         }
         points.push_back(next_point);
     }
 
-    if (config.add_corners) {
+    // Segmentation handling
+    if (PREV_LAYER_BOUNDARY_OFFSET && ADD_INTERSECTIONS) {
         std::vector<ExtendedPoint> new_points;
         new_points.reserve(points.size() * 2);
         new_points.push_back(points.front());
@@ -149,29 +176,51 @@ std::vector<ExtendedPoint> estimate_points_properties(
             if ((curr.distance > -boundary_offset && curr.distance < boundary_offset + 2.0f) ||
                 (next.distance > -boundary_offset && next.distance < boundary_offset + 2.0f)) {
                 double line_len = (next.position - curr.position).norm();
-                if (line_len > 4.0f) {
+
+                // ORCA: Segment path to smaller lines by adding additional points only if the path has an overhang that
+                // will trigger a slowdown and the path is also reasonably large, i.e. 2mm in length or more
+                // If there is no overhang in the start/end point, dont segment it.
+                // Ignore this check if the control of segmentation for overhangs is disabled (min_distance=-1)
+                if ((min_distance > 0 && ((std::abs(curr.distance) > min_distance) || (std::abs(next.distance) > min_distance)) && line_len >= 2.f) ||
+                    (min_distance <= 0 && line_len > 4.0f)) {
                     double a0 = std::clamp((curr.distance + 3 * boundary_offset) / line_len, 0.0, 1.0);
                     double a1 = std::clamp(1.0f - (next.distance + 3 * boundary_offset) / line_len, 0.0, 1.0);
                     double t0 = std::min(a0, a1);
                     double t1 = std::max(a0, a1);
 
                     if (t0 < 1.0) {
-                        auto p0     = curr.position + t0 * (next.position - curr.position);
+                        Vec2d p0     = curr.position + t0 * (next.position - curr.position);
                         auto [p0_dist, p0_near_l,
                               p0_x] = unscaled_prev_layer.template distance_from_lines_extra<SIGNED_DISTANCE>(p0.cast<AABBScalar>());
                         ExtendedPoint new_p{};
                         new_p.position = p0;
                         new_p.distance = float(p0_dist + boundary_offset);
-                        new_points.push_back(new_p);
+                        // ORCA: only create a new point in the path if the new point overhang distance will be used to generate a speed change
+                        // or if this option is disabled (min_distance<=0)
+                        if( (std::abs(p0_dist) > min_distance) || (min_distance<=0)){
+                            // ORCA: also filter out points that are introduced to the start of the path when their distance from the start point is
+                            // not meaningful
+                            if ((p0 - curr.position).norm() > min_spacing && (next.position - p0).norm() > min_spacing) {
+                                new_points.push_back(new_p);
+                            }
+                        }
                     }
                     if (t1 > 0.0) {
-                        auto p1     = curr.position + t1 * (next.position - curr.position);
+                        Vec2d p1     = curr.position + t1 * (next.position - curr.position);
                         auto [p1_dist, p1_near_l,
                               p1_x] = unscaled_prev_layer.template distance_from_lines_extra<SIGNED_DISTANCE>(p1.cast<AABBScalar>());
                         ExtendedPoint new_p{};
                         new_p.position = p1;
                         new_p.distance = float(p1_dist + boundary_offset);
-                        new_points.push_back(new_p);
+                        // ORCA: only create a new point in the path if the new point overhang distance will be used to generate a speed change
+                        // or if this option is disabled (min_distance<=0)
+                        if( (std::abs(p1_dist) > min_distance) || (min_distance<=0)){
+                            // ORCA: filter out points that are introduced to the end of the path when their distance from the end point is
+                            // not meaningful
+                            if ((p1 - curr.position).norm() > min_spacing && (next.position - p1).norm() > min_spacing) {
+                                new_points.push_back(new_p);
+                            }
+                        }
                     }
                 }
             }
@@ -180,7 +229,8 @@ std::vector<ExtendedPoint> estimate_points_properties(
         points = std::move(new_points);
     }
 
-    if (config.max_line_length > 0) {
+    // Maximum line length handling
+    if (max_line_length > 0) {
         std::vector<ExtendedPoint> new_points;
         new_points.reserve(points.size() * 2);
         {
@@ -189,7 +239,7 @@ std::vector<ExtendedPoint> estimate_points_properties(
                 const ExtendedPoint &next = points[i + 1];
                 new_points.push_back(curr);
                 double len             = (next.position - curr.position).squaredNorm();
-                double t               = sqrt((config.max_line_length * config.max_line_length) / len);
+                double t               = sqrt((max_line_length * max_line_length) / len);
                 size_t new_point_count = 1.0 / t;
                 for (size_t j = 1; j < new_point_count + 1; j++) {
                     Vec2d pos  = curr.position * (1.0 - j * t) + next.position * (j * t);
@@ -198,7 +248,11 @@ std::vector<ExtendedPoint> estimate_points_properties(
                     ExtendedPoint new_p{};
                     new_p.position = pos;
                     new_p.distance = float(p_dist + boundary_offset);
-                    new_points.push_back(new_p);
+
+                    // ORCA: Filter out points that are introduced if their distance from the previous or next point is not meaningful
+                    if ((pos - curr.position).norm() > min_spacing && (next.position - pos).norm() > min_spacing) {
+                        new_points.push_back(new_p);
+                    }
                 }
             }
             new_points.push_back(points.back());
@@ -206,6 +260,7 @@ std::vector<ExtendedPoint> estimate_points_properties(
         points = std::move(new_points);
     }
 
+    // Curvature calculation
     float accumulated_distance = 0;
     std::vector<float> distances_for_curvature(points.size());
     for (size_t point_idx = 0; point_idx < points.size(); ++point_idx) {
@@ -271,21 +326,44 @@ std::vector<ExtendedPoint> estimate_points_properties(
     return points;
 }
 
-ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath                             &path,
-                                                          const AABBTreeLines::LinesDistancer<Linef>      &unscaled_prev_layer,
-                                                          const AABBTreeLines::LinesDistancer<CurledLine> &prev_layer_curled_lines);
+class OverhangExtrusionProcessor
+{
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<Linef>> prev_layer_boundaries;
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<Linef>> next_layer_boundaries;
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<CurledLine>> prev_curled_extrusions;
+    std::unordered_map<const PrintObject *, AABBTreeLines::LinesDistancer<CurledLine>> next_curled_extrusions;
+    const PrintObject                                                            *current_object;
 
-ExtrusionEntityCollection calculate_and_split_overhanging_extrusions(
-    const ExtrusionEntityCollection                 *ecc,
-    const AABBTreeLines::LinesDistancer<Linef>      &unscaled_prev_layer,
-    const AABBTreeLines::LinesDistancer<CurledLine> &prev_layer_curled_lines);
+public:
+    void set_current_object(const PrintObject *object) { current_object = object; }
 
-OverhangSpeeds calculate_overhang_speed(const ExtrusionAttributes  &attributes,
-                                        const FullPrintConfig      &config,
-                                        size_t                      extruder_id,
-                                        float                       external_perimeter_reference_speed,
-                                        float                       default_speed,
-                                        const std::optional<float> &current_fan_speed);
+    void prepare_for_new_layer(const PrintObject * obj, const Layer *layer);
+
+    std::vector<ProcessedPoint> calculate_and_split_overhanging_extrusions(
+        const Geometry::ArcWelder::Path &path,
+        const ExtrusionAttributes &path_attr,
+        const ConfigOptionPercents &overlaps,
+        const ConfigOptionFloatsOrPercents &speeds,
+        float ext_perimeter_speed,
+        float original_speed
+    );
+};
+
+// ExtrusionPaths calculate_and_split_overhanging_extrusions(const ExtrusionPath                             &path,
+//                                                           const AABBTreeLines::LinesDistancer<Linef>      &unscaled_prev_layer,
+//                                                           const AABBTreeLines::LinesDistancer<CurledLine> &prev_layer_curled_lines);
+
+// ExtrusionEntityCollection calculate_and_split_overhanging_extrusions(
+//     const ExtrusionEntityCollection                 *ecc,
+//     const AABBTreeLines::LinesDistancer<Linef>      &unscaled_prev_layer,
+//     const AABBTreeLines::LinesDistancer<CurledLine> &prev_layer_curled_lines);
+
+// OverhangSpeeds calculate_overhang_speed(const ExtrusionAttributes  &attributes,
+//                                         const FullPrintConfig      &config,
+//                                         size_t                      extruder_id,
+//                                         float                       external_perimeter_reference_speed,
+//                                         float                       default_speed,
+//                                         const std::optional<float> &current_fan_speed);
 
 } // namespace Slic3r::ExtrusionProcessor
 

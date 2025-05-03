@@ -37,9 +37,10 @@ namespace Slic3r::GCode {
 // public, so that it could be accessed by free helper functions from GCode.cpp
 struct ObjectLayerToPrint
 {
-    ObjectLayerToPrint() : object_layer(nullptr), support_layer(nullptr) {}
+    ObjectLayerToPrint() : object_layer(nullptr), support_layer(nullptr) {}, original_object(nullptr) {}
     const Layer *object_layer;
     const SupportLayer *support_layer;
+    const PrintObject*  original_object;
     const Layer *layer() const { return (object_layer != nullptr) ? object_layer : support_layer; }
     const PrintObject *object() const {
         return (this->layer() != nullptr) ? this->layer()->object() : nullptr;
