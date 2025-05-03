@@ -159,6 +159,11 @@ int Extruder::deretract_speed() const
     return (speed > 0) ? speed : this->retract_speed();
 }
 
+double Extruder::unretract_before_start() const
+{
+    return m_config->unretract_before_start.get_at(m_id);
+}
+
 double Extruder::retract_restart_extra() const
 {
     return m_config->retract_restart_extra.get_at(m_id);

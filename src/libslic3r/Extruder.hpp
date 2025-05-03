@@ -74,6 +74,7 @@ public:
     double retract_restart_extra() const;
     double retract_length_toolchange() const;
     double retract_restart_extra_toolchange() const;
+    double unretract_before_start() const;
 
 private:
     // Private constructor to create a key for a search in std::set.

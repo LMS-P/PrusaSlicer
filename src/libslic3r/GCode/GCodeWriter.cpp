@@ -107,6 +107,34 @@ std::string GCodeWriter::postamble() const
     return gcode.str();
 }
 
+std::string GCodeWriter::unretract_before_start()
+{
+    if (m_extruder == nullptr) {
+        return "";
+    }
+
+    std::string gcode;
+
+    if (FLAVOR_IS(gcfMakerWare))
+        gcode = "M101 ; extruder on\n";
+
+    if (auto [dE, emitE] =m_extruder->extrude(m_extruder->unretract_before_start()); dE != 0) {
+        if (! m_extrusion_axis.empty()) {
+            // use G1 instead of G0 because G0 will blend the restart with the previous travel move
+            GCodeG1Formatter w;
+            w.emit_e(m_extrusion_axis, emitE);
+            w.emit_f(m_extruder->deretract_speed() * 60.);
+            w.emit_comment(this->config.gcode_comments, " ; unretract before start");
+            gcode += w.string();
+
+            gcode += "\n";
+            gcode += this->reset_e(false);
+        }
+    }
+
+    return gcode;
+}
+
 std::string GCodeWriter::set_temperature(unsigned int temperature, GCodeFlavor flavor, bool wait, int tool, std::string comment)
 {
     if (wait && (flavor == gcfMakerWare || flavor == gcfSailfish))

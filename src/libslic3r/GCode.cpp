@@ -1275,6 +1275,9 @@ void GCodeGenerator::_do_export(Print& print, GCodeOutputStream &file, Thumbnail
         file.write(this->set_extruder(initial_extruder_id, 0.));
     }
 
+    // Extruder is set, emit extra unretract before starting to print objects
+    file.write(this->unretract_before_start());
+
     GCode::SmoothPathCache smooth_path_cache_global = smooth_path_interpolate_global(print);
 
     // Do all objects for each layer.

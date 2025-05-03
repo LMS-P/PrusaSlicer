@@ -76,6 +76,7 @@ public:
     std::string toolchange_prefix() const;
     std::string toolchange(unsigned int extruder_id);
     std::string set_speed(double F, const std::string_view comment = {}, const std::string_view cooling_marker = {}) const;
+    std::string unretract_before_start();
 
     /**
      * @brief Return gcode to travel to the specified point.

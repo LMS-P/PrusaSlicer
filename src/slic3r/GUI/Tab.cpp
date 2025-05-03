@@ -3324,7 +3324,7 @@ const std::vector<std::string> extruder_options = {
     "retract_speed", "deretract_speed", "retract_restart_extra", "retract_before_travel",
     "retract_layer_change", "wipe", "retract_before_wipe", "travel_ramping_lift",
     "travel_slope", "travel_max_lift", "travel_lift_before_obstacle", "nozzle_high_flow",
-    "retract_length_toolchange", "retract_restart_extra_toolchange",
+    "retract_length_toolchange", "retract_restart_extra_toolchange", "unretract_before_start",
 };
 
 void TabPrinter::build_extruder_pages(size_t n_before_extruders)
@@ -3529,6 +3529,7 @@ void TabPrinter::build_extruder_pages(size_t n_before_extruders)
         optgroup->append_single_option_line("retract_layer_change", "", extruder_idx);
         optgroup->append_single_option_line("wipe", "", extruder_idx);
         optgroup->append_single_option_line("retract_before_wipe", "", extruder_idx);
+        optgroup->append_single_option_line("unretract_before_start", "", extruder_idx);
 
         optgroup = page->new_optgroup(L("Retraction when tool is disabled (advanced settings for multi-extruder setups)"));
         optgroup->append_single_option_line("retract_length_toolchange", "", extruder_idx);
@@ -3761,7 +3762,7 @@ void TabPrinter::toggle_options()
 
         // some options only apply when not using firmware retraction
         vec.resize(0);
-        vec = { "retract_speed", "deretract_speed", "retract_before_wipe", "retract_restart_extra", "wipe" };
+        vec = { "retract_speed", "deretract_speed", "retract_before_wipe", "unretract_before_start", "retract_restart_extra", "wipe" };
         for (auto el : vec)
             toggle_option(el, retraction && !use_firmware_retraction, i);
 

@@ -3270,6 +3270,13 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloats { 0. });
 
+    def = this->add("unretract_before_start", coFloats);
+    def->label = L("Unretract amount before start");
+    def->tooltip = L("Unretract this amount of filament on print start before printing the objects");
+    def->sidetext = L("mm");
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloats { 0. });
+
     def = this->add("retract_restart_extra_toolchange", coFloats);
     def->label = L("Extra length on restart");
     def->tooltip = L("When the retraction is compensated after changing tool, the extruder will push "
@@ -4580,7 +4587,7 @@ void PrintConfigDef::init_extruder_option_keys()
         "retract_before_wipe", "retract_restart_extra", "retract_before_travel", "wipe",
         "travel_slope", "travel_max_lift", "travel_ramping_lift", "travel_lift_before_obstacle",
         "retract_layer_change", "retract_length_toolchange", "retract_restart_extra_toolchange", "extruder_colour",
-        "default_filament_profile", "nozzle_high_flow"
+        "default_filament_profile", "nozzle_high_flow", "unretract_before_start"
     };
 
     m_extruder_retract_keys = {
@@ -4600,6 +4607,7 @@ void PrintConfigDef::init_extruder_option_keys()
         "travel_max_lift",
         "travel_ramping_lift",
         "travel_slope",
+        "unretract_before_start",
         "wipe"
     };
     assert(std::is_sorted(m_extruder_retract_keys.begin(), m_extruder_retract_keys.end()));
