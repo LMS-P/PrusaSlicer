@@ -8,12 +8,14 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include <cmath>
+#include <Eigen/Dense>
 
 #include "../ClipperUtils.hpp"
 #include "../ShortestPath.hpp"
 #include "FillPlanePath.hpp"
 #include "libslic3r/BoundingBox.hpp"
 #include "libslic3r/Fill/FillBase.hpp"
+
 
 namespace Slic3r {
 
@@ -78,9 +80,9 @@ void InfillPolylineClipper::add_point(const Vec2d &fpt)
 }
 
 void FillPlanePath::_fill_surface_single(
-    const FillParams                &params, 
+    const FillParams                &params,
     unsigned int                     thickness_layers,
-    const std::pair<float, Point>   &direction, 
+    const std::pair<float, Point>   &direction,
     ExPolygon                        expolygon,
     Polylines                       &polylines_out)
 {
@@ -100,7 +102,7 @@ void FillPlanePath::_fill_surface_single(
         // around the clipping expolygon only.
         snug_bounding_box;
 
-    Point shift = this->centered() ? 
+    Point shift = this->centered() ?
         bounding_box.center() :
         bounding_box.min;
     expolygon.translate(-shift.x(), -shift.y());
@@ -175,7 +177,7 @@ void FillArchimedeanChords::generate(coord_t min_x, coord_t min_y, coord_t max_x
         generate_archimedean_chords(min_x, min_y, max_x, max_y, resolution, output);
 }
 
-// Adapted from 
+// Adapted from
 // http://cpansearch.perl.org/src/KRYDE/Math-PlanePath-122/lib/Math/PlanePath/HilbertCurve.pm
 //
 // state=0    3--2   plain
@@ -248,6 +250,73 @@ void FillHilbertCurve::generate(coord_t min_x, coord_t min_y, coord_t max_x, coo
         generate_hilbert_curve(min_x, min_y, max_x, max_y, static_cast<InfillPolylineClipper&>(output));
     else
         generate_hilbert_curve(min_x, min_y, max_x, max_y, output);
+}
+
+static inline Point flowsnake_n_to_xy(const size_t n, const size_t level) {
+    static const int dx[] = { 1, 0, -1, -1, 0, 1 };  // Hex directions x
+    static const int dy[] = { 0, 1, 1, 0, -1, -1 };  // Hex directions y
+    
+    coord_t x = 0, y = 0;
+    int dir = 0;
+    size_t pos = 0;
+    
+    // Convert n to base 7 for Gosper curve
+    std::vector<int> sequence;
+    size_t temp = n;
+    while (temp > 0 || sequence.size() < level) {
+        sequence.push_back(temp % 7);
+        temp /= 7;
+    }
+    
+    // Apply Gosper curve rules
+    for (int i = sequence.size() - 1; i >= 0; --i) {
+        int step = sequence[i];
+        switch (step) {
+            case 0: dir = (dir + 0) % 6; break;
+            case 1: dir = (dir + 1) % 6; break;
+            case 2: dir = (dir + 2) % 6; break;
+            case 3: dir = (dir + 3) % 6; break;
+            case 4: dir = (dir + 4) % 6; break;
+            case 5: dir = (dir + 5) % 6; break;
+            case 6: /* no direction change */ break;
+        }
+        x += dx[dir];
+        y += dy[dir];
+    }
+    
+    return Point(x, y);
+}
+
+template<typename Output>
+static void generate_flowsnake_curve(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, Output &output)
+{
+    // Find minimum curve order to fit the domain
+    size_t sz0 = std::max(max_x + 1 - min_x, max_y + 1 - min_y);
+    size_t level = 1;
+    size_t sz = 7;  // Flowsnake curve grows by factor of 7 each level
+    while (sz < sz0) {
+        level++;
+        sz *= 7;
+    }
+    
+    output.reserve(sz);
+    
+    // Generate the curve points
+    Point p0 = flowsnake_n_to_xy(0, level);
+    for (size_t i = 1; i < sz; ++i) {
+        Point p1 = flowsnake_n_to_xy(i, level);
+        output.add_point(Vec2d(p0.x(), p0.y()));
+        p0 = p1;
+    }
+    output.add_point(Vec2d(p0.x(), p0.y()));
+}
+
+void FillFlowsnakeCurve::generate(coord_t min_x, coord_t min_y, coord_t max_x, coord_t max_y, const double /* resolution */, InfillPolylineOutput &output)
+{
+    if (output.clips())
+        generate_flowsnake_curve(min_x, min_y, max_x, max_y, static_cast<InfillPolylineClipper&>(output));
+    else
+        generate_flowsnake_curve(min_x, min_y, max_x, max_y, output);
 }
 
 template<typename Output>

@@ -142,6 +142,7 @@ static const t_config_enum_values s_keys_map_InfillPattern {
     { "3dhoneycomb",        ip3DHoneycomb },
     { "gyroid",             ipGyroid },
     { "hilbertcurve",       ipHilbertCurve },
+    { "flowsnakecurve",     ipFlowsnakeCurve },
     { "archimedeanchords",  ipArchimedeanChords },
     { "octagramspiral",     ipOctagramSpiral },
     { "adaptivecubic",      ipAdaptiveCubic },
@@ -1161,6 +1162,7 @@ void PrintConfigDef::init_fff_params()
         { "alignedrectilinear", L("Aligned Rectilinear") },
         { "concentric",         L("Concentric") },
         { "hilbertcurve",       L("Hilbert Curve") },
+        { "flowsnakecurve",     L("Flowsnake Curve") },
         { "archimedeanchords",  L("Archimedean Chords") },
         { "octagramspiral",     L("Octagram Spiral") }
     });
@@ -1786,6 +1788,7 @@ void PrintConfigDef::init_fff_params()
         { "3dhoneycomb",        L("3D Honeycomb")},
         { "gyroid",             L("Gyroid")},
         { "hilbertcurve",       L("Hilbert Curve")},
+        { "flowsnakecurve",     L("Flowsnake Curve")},
         { "archimedeanchords",  L("Archimedean Chords")},
         { "octagramspiral",     L("Octagram Spiral")},
         { "adaptivecubic",      L("Adaptive Cubic")},
