@@ -3753,12 +3753,12 @@ std::string GCodeGenerator::generate_travel_gcode(
         return "";
     }
 
-    const unsigned travel_acceleration                = static_cast<unsigned>(m_config.travel_acceleration.value + 0.5);
-    const unsigned travel_mcr                         = static_cast<unsigned>(m_config.travel_minimum_cruise_ratio.value + 0.5);
-    const unsigned travel_jerk                        = static_cast<unsigned>(m_config.travel_jerk.value + 0.5);
-    const unsigned travel_short_distance_acceleration = static_cast<unsigned>(m_config.travel_short_distance_acceleration.value + 0.5);
-    const unsigned travel_short_distance_mcr          = static_cast<unsigned>(m_config.travel_short_distance_minimum_cruise_ratio.value + 0.5);
-    const unsigned travel_short_distance_jerk         = static_cast<unsigned>(m_config.travel_short_distance_jerk.value + 0.5);
+    const unsigned travel_acceleration = fast_round_up<unsigned int>(m_config.travel_acceleration.value);
+    const unsigned travel_jerk = fast_round_up<unsigned int>(m_config.travel_jerk.value);
+    const float travel_mcr = m_config.travel_minimum_cruise_ratio.value;
+    const unsigned travel_short_distance_acceleration = fast_round_up<unsigned int>(m_config.travel_short_distance_acceleration.value);
+    const unsigned travel_short_distance_jerk = fast_round_up<unsigned int>(m_config.travel_short_distance_jerk.value);
+    const float travel_short_distance_mcr = m_config.travel_short_distance_minimum_cruise_ratio.value;
 
     std::string gcode;
     // Generate G-code for the travel move.
