@@ -650,6 +650,7 @@ static std::vector<std::string> s_Preset_printer_options {
 static std::vector<std::string> s_Preset_sla_print_options {
     "layer_height",
     "faded_layers",
+    "bot_layers",
     "supports_enable",
     "support_tree_type",
 
@@ -739,6 +740,10 @@ static std::vector<std::string> s_Preset_sla_material_options {
     "sla_retract_speed",
     "bot_light_intensity",
     "light_intensity",
+    "bot_rest_time_before_lift",
+    "bot_rest_time_after_lift",
+    "bot_rest_time_after_retract",
+    "rest_time_before_lift",
     "rest_time_after_lift",
     "rest_time_after_retract",
     "tsmc_bot_enable",
