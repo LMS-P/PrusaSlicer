@@ -25,7 +25,7 @@ struct ItemArrangedVisitor {
     {}
 };
 
-// Use the the visitor baked into the ArrItem type by default
+// Use the visitor baked into the ArrItem type by default
 struct DefaultOnArrangedFn {
     template<class ArrItem, class Bed, class PIt, class RIt>
     void operator()(ArrItem &itm,
@@ -135,40 +135,31 @@ void arrange(
     using SConstIt = typename std::vector<ArrItemRef>::const_iterator;
 
     while (it != sorted_items.end() && !is_cancelled()) {
-        bool was_packed = false;
-        int bedidx = 0;
-        while (!was_packed && !is_cancelled()) {
-            for (; !was_packed && !is_cancelled(); bedidx++) {
-                const std::optional<int> bed_constraint{get_bed_constraint(*it)};
-                if (bed_constraint && bedidx != *bed_constraint) {
-                    continue;
-                }
-                set_bed_index(*it, bedidx);
+        const std::optional<int> bed_constraint{get_bed_constraint(*it)};
+        const auto remaining = Range{std::next(static_cast<SConstIt>(it)),
+                                     sorted_items.cend()};
+        // NOTE: packed_range is [begin, it), which excludes *it itself.
+        // on_arranged_fn therefore receives only the items packed *before*
+        // the current one. If callers ever need the current item included,
+        // this range would need to be [begin, next(it)) after a successful pack.
+        const auto packed_range = Range{sorted_items.cbegin(),
+                                        static_cast<SConstIt>(it)};
+        bool stop_searching = false;
+        // Start at the constrained bed if one is specified, avoiding iterating
+        // over beds that will never satisfy the constraint.
+        for (int bedidx = bed_constraint.value_or(0);
+             !stop_searching && !is_cancelled();
+             bedidx++) {
+            Context &ctx = get_or_init_context(bedidx);
 
-                auto remaining = Range{std::next(static_cast<SConstIt>(it)),
-                                       sorted_items.cend()};
-
-                Context &ctx = get_or_init_context(bedidx);
-
-                was_packed = pack(ps, bed, *it, ctx, remaining);
-
-                if(was_packed) {
-                    add_packed_item(ctx, *it);
-
-                    auto packed_range = Range{sorted_items.cbegin(),
-                                              static_cast<SConstIt>(it)};
-
-                    sel.on_arranged_fn(*it, bed, packed_range, remaining);
-                } else {
-                    set_bed_index(*it, Unarranged);
-                    if (bed_constraint && bedidx == *bed_constraint) {
-                        // Leave the item as is as it does not fit on the enforced bed.
-                        auto packed_range = Range{sorted_items.cbegin(),
-                                                  static_cast<SConstIt>(it)};
-                        was_packed = true;
-                        sel.on_arranged_fn(*it, bed, packed_range, remaining);
-                    }
-                }
+            if (pack(ps, bed, *it, ctx, remaining)) {
+                set_bed_index(*it, bedidx);  // only commit bed index on success
+                add_packed_item(ctx, *it);
+                sel.on_arranged_fn(*it, bed, packed_range, remaining);
+                stop_searching = true;
+            } else if (bed_constraint) {
+                // Item does not fit on its enforced bed; leave as Unarranged.
+                stop_searching = true;
             }
         }
         ++it;
