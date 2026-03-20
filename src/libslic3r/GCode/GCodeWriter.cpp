@@ -287,28 +287,53 @@ std::string GCodeWriter::set_junction_deviation(const double junction_deviation)
 
 std::string GCodeWriter::set_jerk(unsigned int jerk, const std::string_view comment)
 {
-    if (jerk == 0 || jerk == m_last_jerk)
+    const bool scv_changed = (jerk != 0 && jerk != m_last_jerk);
+
+    // Clamp jerk to machine limits.
+    int jerk_x = jerk, jerk_y = jerk;
+    if (scv_changed) {
+        if (m_max_jerk_x > 0 && jerk > m_max_jerk_x)
+            jerk_x = m_max_jerk_x;
+        if (m_max_jerk_y > 0 && jerk > m_max_jerk_y)
+            jerk_y = m_max_jerk_y;
+        m_last_jerk = jerk;
+    }
+
+    // For Klipper: merge pending acceleration with SCV into a single SET_VELOCITY_LIMIT.
+    if (FLAVOR_IS(gcfKlipper)) {
+        if (!scv_changed && !m_klipper_accel_pending)
+            return {};
+
+        std::string gcode = "SET_VELOCITY_LIMIT";
+
+        // Emit pending acceleration if buffered from set_acceleration_internal().
+        if (m_klipper_accel_pending) {
+            gcode += " ACCEL=" + std::to_string(m_klipper_pending_accel);
+            if (m_klipper_pending_mcr > 0)
+                gcode += " MINIMUM_CRUISE_RATIO=" + std::to_string(m_klipper_pending_mcr);
+            m_klipper_accel_pending = false;
+        }
+
+        if (scv_changed)
+            gcode += " SQUARE_CORNER_VELOCITY=" + std::to_string(std::min(jerk_x, jerk_y));
+
+        if (this->config.gcode_comments) {
+            gcode += " ; adjust velocity limit (";
+            gcode += comment;
+            gcode += ')';
+        }
+
+        gcode += '\n';
+        return gcode;
+    }
+
+    if (!scv_changed)
         return {};
 
-    // Clamp the jerk to the allowed maximum.
-    int jerk_x = jerk, jerk_y = jerk;
-    if (m_max_jerk_x > 0 && jerk > m_max_jerk_x)
-        jerk_x = m_max_jerk_x;
-    if (m_max_jerk_y > 0 && jerk > m_max_jerk_y)
-        jerk_y = m_max_jerk_y;
-
-    m_last_jerk = jerk;
-
-    std::string gcode;
-    if (FLAVOR_IS(gcfKlipper))
-        gcode = "SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=" + std::to_string(std::min(jerk_x, jerk_y));
-    else if (FLAVOR_IS(gcfRepRapFirmware)) {
-        const auto jx = std::to_string(jerk_x), jy = std::to_string(jerk_y);
-        gcode = "M566 X" + jx + " Y" + jy;
-    } else {
-        const auto jx = std::to_string(jerk_x), jy = std::to_string(jerk_y);
-        gcode = "M205 X" + jx + " Y" + jy;
-    }
+    const auto jx = std::to_string(jerk_x), jy = std::to_string(jerk_y);
+    std::string gcode = FLAVOR_IS(gcfRepRapFirmware)
+        ? "M566 X" + jx + " Y" + jy
+        : "M205 X" + jx + " Y" + jy;
 
     if (this->config.gcode_comments) {
         gcode += " ; adjust jerk (";
