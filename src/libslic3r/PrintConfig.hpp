@@ -256,6 +256,13 @@ enum class CoolingSlowdownLogicType
     Proportional,
 };
 
+enum class RetractLiftEnforceType {
+    AllSurfaces,
+    TopOnly,
+    BottomOnly,
+    TopAndBottom,
+};
+
 #define CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NAME) \
     template<> const t_config_enum_names& ConfigOptionEnum<NAME>::get_enum_names(); \
     template<> const t_config_enum_values& ConfigOptionEnum<NAME>::get_enum_values();
@@ -287,6 +294,7 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PerimeterGeneratorType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(TopOnePerimeterType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(EnsureVerticalShellThickness)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(CoolingSlowdownLogicType)
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(RetractLiftEnforceType)
 
 #undef CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS
 
@@ -928,6 +936,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,              retract_lift))
     ((ConfigOptionFloats,              retract_lift_above))
     ((ConfigOptionFloats,              retract_lift_below))
+    ((ConfigOptionEnums<RetractLiftEnforceType>, retract_lift_enforce))
     ((ConfigOptionFloats,              retract_restart_extra))
     ((ConfigOptionFloats,              retract_restart_extra_toolchange))
     ((ConfigOptionFloats,              retract_speed))
