@@ -1095,6 +1095,7 @@ Polylines Layer::generate_sparse_infill_polylines_for_anchoring(FillAdaptive::Oc
         case ipHilbertCurve:
         case ipArchimedeanChords:
         case ipOctagramSpiral:
+        case ipFlowsnake:
         case ipZigZag: break;
         }
 
