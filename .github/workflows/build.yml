@@ -3,7 +3,7 @@ name: Build
 on:
   push:
     branches:
-      - boss
+      - lms
       - release/*
     paths:
       - "deps/**"
@@ -17,7 +17,7 @@ on:
 
   pull_request:
     branches:
-      - boss
+      - lms
       - release/*
     paths:
       - "deps/**"
