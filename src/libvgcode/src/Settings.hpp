@@ -56,7 +56,6 @@ struct Settings
 				true, // TopSolidInfill
 				true, // Ironing
 				true, // BridgeInfill
-				true, // BridgeInternalInfill
 				true, // GapFill
 				true, // Skirt
 				true, // SupportMaterial
