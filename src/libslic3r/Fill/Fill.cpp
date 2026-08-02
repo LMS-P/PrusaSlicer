@@ -248,7 +248,11 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
 		            continue;
 
 		        if (is_bridge) {
-		            params.extrusion_role = ExtrusionRole::BridgeInfill;
+				if (surface.is_bridge_internal()) {
+		        		params.extrusion_role = ExtrusionRole::BridgeInternalInfill;
+			        } else {
+					params.extrusion_role = ExtrusionRole::BridgeInfill;
+				}
                 } else {
                     if (surface.is_solid()) {
                         if (surface.is_top()) {
@@ -275,6 +279,8 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 params.role_speed = 0.f;
                 if (params.extrusion_role == ExtrusionRole::BridgeInfill)
                     params.role_speed = float(region_config.get_abs_value("bridge_speed"));
+		else if (params.extrusion_role == ExtrusionRole::BridgeInternalInfill)
+                    params.role_speed = float(region_config.get_abs_value("internal-bridge_speed"));
                 else if (params.extrusion_role == ExtrusionRole::InternalInfill)
                     params.role_speed = float(region_config.get_abs_value("infill_speed"));
                 else if (params.extrusion_role == ExtrusionRole::InfillOverBridge) {
