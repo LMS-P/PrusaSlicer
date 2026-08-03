@@ -280,7 +280,7 @@ std::vector<SurfaceFill> group_fills(const Layer &layer)
                 if (params.extrusion_role == ExtrusionRole::BridgeInfill)
                     params.role_speed = float(region_config.get_abs_value("bridge_speed"));
 		else if (params.extrusion_role == ExtrusionRole::BridgeInternalInfill)
-                    params.role_speed = float(region_config.get_abs_value("internal-bridge_speed"));
+                    params.role_speed = float(region_config.get_abs_value("internal_bridge_speed"));
                 else if (params.extrusion_role == ExtrusionRole::InternalInfill)
                     params.role_speed = float(region_config.get_abs_value("infill_speed"));
                 else if (params.extrusion_role == ExtrusionRole::InfillOverBridge) {
