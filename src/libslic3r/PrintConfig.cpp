@@ -800,7 +800,16 @@ void PrintConfigDef::init_fff_params()
 
     def = this->add("bridge_fan_speed", coInts);
     def->label = L("Bridges fan speed");
-    def->tooltip = L("This fan speed is enforced during all bridges and overhangs.");
+    def->tooltip = L("This fan speed is enforced during external bridges and overhangs.");
+    def->sidetext = L("%");
+    def->min = 0;
+    def->max = 100;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionInts { 100 });
+
+    def = this->add("internal_bridge_fan_speed", coInts);
+    def->label = L("Internal bridges fan speed");
+    def->tooltip = L("This fan speed is enforced during internal bridges.");
     def->sidetext = L("%");
     def->min = 0;
     def->max = 100;
@@ -872,9 +881,9 @@ void PrintConfigDef::init_fff_params()
     def->set_default_value(new ConfigOptionFloat(1));
 
     def = this->add("bridge_speed", coFloat);
-    def->label = L("Bridges");
+    def->label = L("Bridges external");
     def->category = L("Speed");
-    def->tooltip = L("Speed for printing bridges.");
+    def->tooltip = L("Speed for printing external bridges.");
     def->sidetext = L("mm/s");
     def->aliases = { "bridge_feed_rate" };
     def->min = 0;
@@ -891,6 +900,16 @@ void PrintConfigDef::init_fff_params()
     def->min = 0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloatOrPercent(0, false));
+
+    def = this->add("internal_bridge_speed", coFloat);
+    def->label = L("Bridges internal");
+    def->category = L("Speed");
+    def->tooltip = L("Speed for printing internal bridges.");
+    def->sidetext = L("mm/s");
+    def->aliases = { "internal_bridge_feed_rate" };
+    def->min = 0;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(60));
 
     def             = this->add("enable_dynamic_overhang_speeds", coBool);
     def->label      = L("Enable dynamic overhang speeds");
